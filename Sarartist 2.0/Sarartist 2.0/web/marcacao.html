@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Marcações - Passo 1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" type="text/css" rel="stylesheet" media="all">
+    <link href="css/style.css" type="text/css" rel="stylesheet" media="all">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="background: #fff5f8;">
+    <div id="header-placeholder"></div>
+
+    <div class="container" style="margin-top: 140px; margin-bottom: 60px;">
+        <div class="booking-container-main">
+            <div class="booking-stepper">
+                <div class="step-item active" onclick="window.location.href='marcacao.html'">
+                    <div class="step-circle">1</div>
+                    <span>Serviço</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" id="step2" onclick="irParaData()">
+                    <div class="step-circle">2</div>
+                    <span>Data e Hora</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" id="step3" onclick="irParaPersonalizacao()">
+                    <div class="step-circle">3</div>
+                    <span>Personalizar</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" id="step4">
+                    <div class="step-circle">4</div>
+                    <span>Confirmação</span>
+                </div>
+            </div>
+
+            <h2 class="text-center">Fazer Marcação</h2>
+
+            <div class="booking-card-white mb-4">
+                <h4 class="mb-4">Escolha o Serviço</h4>
+                <div class="row" id="servicos-container">
+                    <div class="col-12 text-center p-5">
+                        <i class="fa fa-spinner fa-spin fa-2x"></i>
+                        <p>A carregar serviços...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/bootstrap.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        $(function () {
+            // CARREGAMENTO DO HEADER COM LÓGICA DO MENU
+            $("#header-placeholder").load("header.html", function() {
+                // Eventos do Menu Hamburger (Ativa o menu que não estava a funcionar)
+                $(document).on('click', '#openMenu', function() {
+                    $('#sideDrawer').addClass('open');
+                    $('#drawerOverlay').addClass('active');
+                });
+
+                $(document).on('click', '#closeMenu, #drawerOverlay', function() {
+                    $('#sideDrawer').removeClass('open');
+                    $('#drawerOverlay').removeClass('active');
+                });
+            });
+
+            $("#footer-placeholder").load("footer.html");
+            
+            carregarServicosBD();
+
+            // Efeito de scroll para o header
+            $(window).scroll(function () {
+                if ($(this).scrollTop() > 50) { $('.w3header').addClass('scrolled'); } 
+                else { $('.w3header').removeClass('scrolled'); }
+            });
+        });
+
+        async function carregarServicosBD() {
+            const { data: servicos, error } = await _supabase
+                .from('servicos')
+                .select('*');
+
+            if (error) {
+                console.error("Erro ao carregar serviços:", error);
+                $('#servicos-container').html('<p class="text-center">Erro ao ligar à base de dados.</p>');
+                return;
+            }
+
+            const container = $('#servicos-container').empty();
+            
+            const icones = {
+                'Manicure': '💅',
+                'Pedicure': '👣',
+                'Maquilhagem': '💄',
+                'Massagem': '💆‍♀️'
+            };
+
+            servicos.forEach(s => {
+                const icone = icones[s.nome] || '✨';
+                container.append(`
+                    <div class="col-md-6 col-sm-6">
+                        <div class="service-card-selectable" onclick="selecionarServico('${s.nome}', ${s.duracao_minutos}, ${s.preco_base})">
+                            <div class="service-icon">${icone}</div>
+                            <h5>${s.nome}</h5>
+                            <span class="price-tag">${s.preco_base}€</span>
+                            <p><small>(${s.duracao_minutos}min)</small></p>
+                        </div>
+                    </div>
+                `);
+            });
+
+            const salvo = localStorage.getItem('servico_nome');
+            if(salvo) {
+                $(`.service-card-selectable:contains('${salvo}')`).addClass('active');
+            }
+        }
+
+        function selecionarServico(nome, duracao, preco) {
+            localStorage.setItem('servico_nome', nome);
+            localStorage.setItem('servico_duracao', duracao);
+            localStorage.setItem('servico_preco', preco);
+            
+            $('.service-card-selectable').removeClass('active');
+            $(event.currentTarget).addClass('active');
+            
+            setTimeout(() => {
+                window.location.href = 'escolher-data.html';
+            }, 300);
+        }
+
+        function irParaData() {
+            if(localStorage.getItem('servico_nome')) {
+                window.location.href = 'escolher-data.html';
+            } else {
+                alert("Por favor, selecione um serviço primeiro.");
+            }
+        }
+
+        function irParaPersonalizacao() {
+            if(localStorage.getItem('reserva_data') && localStorage.getItem('reserva_hora')) {
+                if(localStorage.getItem('servico_nome') === 'Manicure') {
+                    window.location.href = 'personalizar.html';
+                } else {
+                    window.location.href = 'confirmacao.html';
+                }
+            } else {
+                alert("Por favor, selecione a data e o horário no passo 2 primeiro.");
+            }
+        }
+    </script>
+</body>
+</html>

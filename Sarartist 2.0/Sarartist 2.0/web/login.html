@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/auth-modals.css" rel="stylesheet">
+    
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <img src="images/Sarartist-new.png" alt="Logo">
+            </div>
+            <h3>Bem-vinda de volta</h3>
+            <div class="auth-form">
+                <div class="auth-group">
+                    <label>E-mail</label>
+                    <input type="email" id="email" placeholder=>
+                </div>
+                <div class="auth-group">
+                    <label>Palavra-passe</label>
+                    <input type="password" id="password" >
+                </div>
+                <button id="btnLogin" class="btn-auth-submit" onclick="handleLogin()">Entrar</button>
+                
+                <p class="auth-switch">Esqueceu-se da senha? <a href="javascript:void(0)" onclick="abrirModalRecuperar()">Recuperar</a></p>
+                <p class="auth-switch">Não tem conta? <a href="registo.html">Registar</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalRecuperar">
+        <div class="central-modal">
+            <h4>Recuperar Senha</h4>
+            <p>Introduza o seu e-mail para receber um código de 6 dígitos.</p>
+            
+            <div class="auth-group text-left" style="margin-top: 15px;">
+                <input type="email" id="email-recuperar" class="form-control" style="padding: 10px; border: 1px solid #ddd;">
+            </div>
+
+            <button id="btnEnviarCodigo" class="btn-auth-submit-modal mt-3" onclick="enviarCodigoRecuperacao()">Enviar Código</button>
+            <button class="btn-cancelar" onclick="fecharModalRecuperar()">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- FUNÇÕES DE CONTROLO DO MODAL ---
+        function abrirModalRecuperar() {
+            $('#modalRecuperar').addClass('active');
+        }
+
+        function fecharModalRecuperar() {
+            $('#modalRecuperar').removeClass('active');
+        }
+
+        async function enviarCodigoRecuperacao() {
+            const email = $('#email-recuperar').val();
+            if(!email) {
+                alert("Por favor, introduza o seu e-mail.");
+                return;
+            }
+
+            $('#btnEnviarCodigo').prop('disabled', true).text('A enviar...');
+
+            const { error } = await _supabase.auth.resetPasswordForEmail(email);
+
+            if (error) {
+                alert("Erro: " + error.message);
+                $('#btnEnviarCodigo').prop('disabled', false).text('Enviar Código');
+            } else {
+                alert("Sucesso! Código enviado para o seu e-mail.");
+                localStorage.setItem('email_recuperacao', email);
+                window.location.href = 'redefinir-senha.html';
+            }
+        }
+
+        // --- LÓGICA DE LOGIN ---
+        async function handleLogin() {
+            const email = $('#email').val();
+            const password = $('#password').val();
+
+            if(!email || !password) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            $('#btnLogin').prop('disabled', true).text('A entrar...');
+
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (error) {
+                alert("Erro: " + error.message);
+                $('#btnLogin').prop('disabled', false).text('Entrar');
+            } else {
+                verificarTipoUtilizador(data.user.id);
+            }
+        }
+
+        async function verificarTipoUtilizador(userId) {
+            const { data, error } = await _supabase
+                .from('perfis')
+                .select('tipo_utilizador')
+                .eq('id', userId)
+                .single();
+
+            if (data && data.tipo_utilizador === 'admin') {
+                window.location.href = 'admin-dashboard.html';
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>

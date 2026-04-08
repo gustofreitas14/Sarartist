@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <title>Sarartist | Nova Palavra-passe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        .otp-input {
+            font-size: 28px;
+            letter-spacing: 8px;
+            text-align: center;
+            font-weight: bold;
+            border: 2px solid #f1703a;
+            color: #333;
+        }
+        .auth-card { padding: 40px; }
+        .btn-auth-submit:disabled { background: #ccc; }
+    </style>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card text-center">
+            <div class="auth-logo">
+                <img src="images/Sarartist-new.png" alt="Logo">
+            </div>
+            <h3>Nova Palavra-passe</h3>
+            <p class="mb-4">Introduza o código de 6 dígitos enviado para o seu e-mail e escolha uma nova senha.</p>
+            
+            <div class="auth-form text-left">
+                <div class="auth-group">
+                    <label>Código de Verificação</label>
+                    <input type="text" id="otp-code" class="form-control otp-input" placeholder="000000" maxlength="6">
+                </div>
+                
+                <div class="auth-group mt-3">
+                    <label>Nova Palavra-passe</label>
+                    <input type="password" id="new-password" class="form-control" placeholder="Mínimo 6 caracteres">
+                </div>
+
+                <div class="auth-group mt-3">
+                    <label>Confirmar Nova Palavra-passe</label>
+                    <input type="password" id="confirm-password" class="form-control" placeholder="Repita a senha">
+                </div>
+
+                <button id="btnRedefinir" class="btn-auth-submit mt-4" onclick="handleReset()">Atualizar Palavra-passe</button>
+                <p class="auth-switch mt-3"><a href="login.html">Voltar ao Login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações do Supabase (Mesmas do teu login)
+        const _supabase = supabase.createClient('https://vonvfugrkkvkqcekcwdo.supabase.co', 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc');
+
+        async function handleReset() {
+            // Recuperamos o email que guardámos no localStorage no passo anterior (no login.html)
+            const email = localStorage.getItem('email_recuperacao');
+            const token = $('#otp-code').val();
+            const newPassword = $('#new-password').val();
+            const confirmPassword = $('#confirm-password').val();
+
+            // Validações básicas
+            if(!email) {
+                alert("Sessão expirada. Por favor, peça o código novamente no Login.");
+                window.location.href = 'login.html';
+                return;
+            }
+            if(!token || token.length < 6) return alert("Introduza o código de 6 dígitos.");
+            if(newPassword.length < 6) return alert("A senha deve ter pelo menos 6 caracteres.");
+            if(newPassword !== confirmPassword) return alert("As senhas não coincidem.");
+
+            $('#btnRedefinir').prop('disabled', true).text('A processar...');
+
+            // 1. Validar o código OTP (tipo recovery)
+            const { error: verifyError } = await _supabase.auth.verifyOtp({
+                email: email,
+                token: token,
+                type: 'recovery' // IMPORTANTE: Para recuperação de senha é sempre 'recovery'
+            });
+
+            if (verifyError) {
+                alert("Código inválido ou expirado: " + verifyError.message);
+                $('#btnRedefinir').prop('disabled', false).text('Atualizar Palavra-passe');
+                return;
+            }
+
+            // 2. Se o código estiver correto, atualizamos a password do utilizador
+            const { error: updateError } = await _supabase.auth.updateUser({
+                password: newPassword
+            });
+
+            if (updateError) {
+                alert("Erro ao atualizar senha: " + updateError.message);
+                $('#btnRedefinir').prop('disabled', false).text('Atualizar Palavra-passe');
+            } else {
+                alert("Sucesso! A sua palavra-passe foi alterada. Já pode entrar.");
+                localStorage.removeItem('email_recuperacao'); // Limpa o email temporário
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>

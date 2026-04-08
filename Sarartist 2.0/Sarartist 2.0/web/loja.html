@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <title>Sarartist | Loja de Beleza</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/loja.css" rel="stylesheet"> 
+    <link href="css/auth-modals.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* Forçamos o estilo do scroll aqui para garantir que funciona */
+        .w3header.scrolled {
+            background: #ffffff !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #carrinho-flutuante {
+            position: fixed; bottom: 30px; right: 30px; 
+            background: #f1703a; color: white; 
+            width: 65px; height: 65px; border-radius: 50%; 
+            display: none; align-items: center; justify-content: center; 
+            cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 999;
+            transition: 0.3s;
+        }
+        #cart-count {
+            position: absolute; top: 0; right: 0; 
+            background: #333; color: white; border-radius: 50%; 
+            width: 24px; height: 24px; font-size: 12px; 
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+        }
+        .qtd-control { display: flex; align-items: center; justify-content: center; gap: 15px; margin: 20px 0 5px 0; }
+        .qtd-control input { 
+            width: 80px; text-align: center; font-weight: bold; 
+            font-size: 1.3rem; border: 1px solid #ddd; border-radius: 5px; 
+            padding: 5px;
+        }
+        .stock-info { font-size: 12px; color: #888; margin-bottom: 20px; }
+        
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <section class="shop-banner">
+        <div class="container text-center">
+            <h2>A Nossa Loja</h2>
+            <p>Produtos selecionados para cuidar da sua beleza em casa.</p>
+        </div>
+    </section>
+
+    <section class="products-grid-section">
+        <div class="container">
+            <div class="row" id="container-produtos" style="display: flex; flex-wrap: wrap;">
+                <div class="col-12 text-center py-5">
+                    <i class="fa fa-spinner fa-spin fa-2x" style="color: #f1703a;"></i>
+                    <p>A carregar produtos...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="modal-overlay" id="modalQuantidade">
+        <div class="central-modal">
+            <h4 id="modal-nome-produto">Produto</h4>
+            <p>Selecione a quantidade:</p>
+            <div class="qtd-control">
+                <button class="btn btn-outline-secondary" onclick="alterarQtd(-1)">-</button>
+                <input type="number" id="qtd-input" value="1" min="1" oninput="validarEscritaQtd(this)">
+                <button class="btn btn-outline-secondary" onclick="alterarQtd(1)">+</button>
+            </div>
+            <p id="stock-disponivel" class="stock-info"></p>
+            <button class="btn-auth-submit-modal" onclick="confirmarCompra()">Adicionar ao Carrinho</button>
+            <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="carrinho-flutuante" onclick="window.location.href='carrinho.html'">
+        <i class="fa fa-shopping-cart fa-2x"></i>
+        <span id="cart-count">0</span>
+    </div>
+
+    <div id="footer-placeholder"></div>
+
+    <script>
+        const _supabase = supabase.createClient('https://vonvfugrkkvkqcekcwdo.supabase.co', 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc');
+        
+        let produtosCarregados = [];
+        let produtoSelecionado = null;
+
+        $(document).ready(function() {
+            // 1. Carregar o header e detetar o scroll APÓS o carregamento
+            $("#header-placeholder").load("header.html", function() {
+                // Ativar menu hamburger
+                $(document).on('click', '#openMenu', function() {
+                    $('#sideDrawer').addClass('open');
+                    $('#drawerOverlay').addClass('active');
+                });
+                $(document).on('click', '#closeMenu, #drawerOverlay', function() {
+                    $('#sideDrawer').removeClass('open');
+                    $('#drawerOverlay').removeClass('active');
+                });
+
+                // Verificar scroll logo ao carregar
+                verificarScrollHeader();
+            });
+
+            $("#footer-placeholder").load("footer.html");
+
+            // 2. Lógica de Scroll robusta
+            $(window).on('scroll', function() {
+                verificarScrollHeader();
+            });
+
+            function verificarScrollHeader() {
+                // Procuramos a w3header dentro do placeholder
+                const header = $('.w3header');
+                if ($(window).scrollTop() > 50) {
+                    header.addClass('scrolled');
+                } else {
+                    header.removeClass('scrolled');
+                }
+            }
+
+            atualizarIconeCarrinho();
+            carregarProdutosLoja();
+        });
+
+        async function carregarProdutosLoja() {
+            const { data, error } = await _supabase.from('produtos').select('*').order('nome');
+            if (error) return console.error(error);
+            produtosCarregados = data;
+            let html = '';
+            data.forEach(p => {
+                const esgotado = p.stock <= 0;
+                html += `
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4 d-flex align-items-stretch">
+                    <div class="product-card w-100">
+                        <div class="product-img">
+                            <img src="${p.imagem_url || 'images/default-product.jpg'}" alt="${p.nome}">
+                            ${esgotado ? '<span class="tag-esgotado">Esgotado</span>' : ''}
+                        </div>
+                        <div class="product-info">
+                            <h5>${p.nome}</h5>
+                            <div>
+                                <p class="price">${p.preco.toFixed(2)}€</p>
+                                <button class="btn-buy" ${esgotado ? 'disabled' : ''} onclick="abrirModalQtd('${p.id}')">
+                                    <i class="fa fa-shopping-cart"></i> ${esgotado ? 'Esgotado' : 'Comprar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            $('#container-produtos').html(html);
+        }
+
+        function abrirModalQtd(id) {
+            produtoSelecionado = produtosCarregados.find(p => p.id === id);
+            $('#modal-nome-produto').text(produtoSelecionado.nome);
+            $('#stock-disponivel').text(`Em stock: ${produtoSelecionado.stock} unidades`);
+            $('#qtd-input').val(1);
+            $('#modalQuantidade').addClass('active');
+        }
+
+        function fecharModal() { $('#modalQuantidade').removeClass('active'); }
+
+        function alterarQtd(val) {
+            let input = $('#qtd-input');
+            let novaQtd = (parseInt(input.val()) || 0) + val;
+            if (novaQtd >= 1 && novaQtd <= produtoSelecionado.stock) {
+                input.val(novaQtd);
+            }
+        }
+
+        function validarEscritaQtd(input) {
+            let valor = parseInt($(input).val());
+            const max = produtoSelecionado.stock;
+            if (valor > max) {
+                alert("Apenas temos " + max + " unidades disponíveis.");
+                $(input).val(max);
+            }
+            if (valor < 1) $(input).val(1);
+        }
+
+        function confirmarCompra() {
+            let inputVal = $('#qtd-input').val();
+            const qtdDesejada = (inputVal === "" || parseInt(inputVal) < 1) ? 1 : parseInt(inputVal);
+            let carrinho = JSON.parse(localStorage.getItem('sarartist_carrinho')) || [];
+            const index = carrinho.findIndex(item => item.id === produtoSelecionado.id);
+            const qtdJaNoCarrinho = index > -1 ? carrinho[index].quantidade : 0;
+
+            if ((qtdJaNoCarrinho + qtdDesejada) > produtoSelecionado.stock) {
+                alert(`Impossível adicionar. Já tem ${qtdJaNoCarrinho} no carrinho e o máximo disponível é ${produtoSelecionado.stock}.`);
+                return;
+            }
+
+            if (index > -1) {
+                carrinho[index].quantidade += qtdDesejada;
+            } else {
+                carrinho.push({
+                    id: produtoSelecionado.id, nome: produtoSelecionado.nome,
+                    preco: produtoSelecionado.preco, imagem: produtoSelecionado.imagem_url,
+                    quantidade: qtdDesejada, stock_limite: produtoSelecionado.stock
+                });
+            }
+
+            localStorage.setItem('sarartist_carrinho', JSON.stringify(carrinho));
+            atualizarIconeCarrinho();
+            fecharModal();
+            alert("Produto adicionado ao carrinho!");
+        }
+
+        function atualizarIconeCarrinho() {
+            const carrinho = JSON.parse(localStorage.getItem('sarartist_carrinho')) || [];
+            const total = carrinho.reduce((sum, item) => sum + item.quantidade, 0);
+            if (total > 0) {
+                $('#carrinho-flutuante').css('display', 'flex');
+                $('#cart-count').text(total);
+            } else {
+                $('#carrinho-flutuante').hide();
+            }
+        }
+    </script>
+</body>
+</html>

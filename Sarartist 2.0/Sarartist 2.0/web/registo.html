@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Registar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* Estilos para o Modal do Código OTP */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .modal-overlay.active { display: flex; }
+        .central-modal {
+            background: white; padding: 30px; border-radius: 15px; max-width: 400px; width: 90%; text-align: center;
+        }
+        .otp-input-field {
+            font-size: 32px; letter-spacing: 10px; font-weight: bold; text-align: center; 
+            border: 2px solid #f1703a; border-radius: 8px; margin: 20px 0; color: #333;
+        }
+        .btn-verificar {
+            background: #f1703a; color: white; border: none; padding: 12px; 
+            border-radius: 8px; width: 100%; font-weight: bold; transition: 0.3s;
+        }
+        .btn-verificar:hover { background: #d95e2b; }
+    </style>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <img src="images/Sarartist.png" alt="Logo">
+            </div>
+            <h3>Criar Conta</h3>
+            <div class="auth-form">
+                <div class="auth-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="reg-nome" placeholder="Maria Silva">
+                </div>
+                <div class="auth-group">
+                    <label>Telemóvel</label>
+                    <input type="tel" id="reg-tel" placeholder="912345678">
+                </div>
+                <div class="auth-group">
+                    <label>E-mail</label>
+                    <input type="email" id="reg-email" placeholder="exemplo@email.com">
+                </div>
+                <div class="auth-group">
+                    <label>Palavra-passe</label>
+                    <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres">
+                </div>
+                <button id="btnRegistar" class="btn-auth-submit" onclick="handleSignUp()">Registar</button>
+                <p class="auth-switch">Já tem conta? <a href="login.html">Fazer Login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="otpModal">
+        <div class="central-modal">
+            <h4 class="mb-2">Verifique o seu E-mail</h4>
+            <p style="font-size: 0.9rem; color: #666;">Introduza o código de 6 dígitos enviado para o seu e-mail.</p>
+            
+            <input type="text" id="otp-input" class="form-control otp-input-field" maxlength="6" placeholder="000000">
+
+            <button id="btnVerificar" class="btn-verificar" onclick="handleVerifyOTP()">Ativar Conta</button>
+            <p class="mt-3" style="font-size: 0.8rem;">Não recebeu? Verifique o Spam.</p>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function handleSignUp() {
+            const email = $('#reg-email').val();
+            const password = $('#reg-password').val();
+            const fullName = $('#reg-nome').val();
+            const phone = $('#reg-tel').val();
+
+            if(!email || !password || !fullName || !phone) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            $('#btnRegistar').prop('disabled', true).text('A processar...');
+
+            const { data, error } = await _supabase.auth.signUp({
+                email, 
+                password,
+                options: { 
+                    data: { 
+                        full_name: fullName, 
+                        phone: phone 
+                    } 
+                }
+            });
+
+            if (error) {
+                alert("Erro: " + error.message);
+                $('#btnRegistar').prop('disabled', false).text('Registar');
+            } else {
+                // Abrir o modal para o código
+                $('#otpModal').addClass('active');
+            }
+        }
+
+        async function handleVerifyOTP() {
+            const email = $('#reg-email').val();
+            const token = $('#otp-input').val();
+
+            if(token.length < 6) {
+                alert("Introduza os 6 dígitos.");
+                return;
+            }
+
+            $('#btnVerificar').prop('disabled', true).text('A validar...');
+
+            const { data, error } = await _supabase.auth.verifyOtp({
+                email,
+                token,
+                type: 'signup' // Corresponde ao template "Confirm sign up" que alteraste
+            });
+
+            if (error) {
+                alert("Erro: " + error.message);
+                $('#btnVerificar').prop('disabled', false).text('Ativar Conta');
+            } else {
+                alert("Conta ativada com sucesso! Bem-vinda.");
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>

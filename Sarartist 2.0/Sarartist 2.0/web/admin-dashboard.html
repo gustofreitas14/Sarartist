@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Admin Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-page">
+    <main class="admin-main" style="margin-left: 0; padding: 40px;">
+        <header class="admin-header d-flex justify-content-between align-items-center">
+            <h2>Olá, Sara! O que vamos gerir hoje?</h2>
+            <div class="header-buttons">
+                <a href="index.html" class="btn btn-outline-primary me-2">
+                    <i class="fa fa-eye"></i> Visualizar Site
+                </a>
+                <button class="btn btn-outline-danger" onclick="handleLogout()">
+                    <i class="fa fa-sign-out"></i> Sair
+                </button>
+            </div>
+        </header>
+
+        <div class="row mt-5">
+            <div class="col-md-3 mb-4">
+                <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-agenda.html'" style="cursor:pointer">
+                    <i class="fa fa-calendar fa-4x mb-3" style="color: #E1306C;"></i>
+                    <h4>Agenda</h4>
+                    <p class="text-muted">Ver e gerir marcações</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-servicos.html'" style="cursor:pointer">
+                    <i class="fa fa-cut fa-4x mb-3" style="color: #E1306C;"></i>
+                    <h4>Serviços</h4>
+                    <p class="text-muted">Preços e durações</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-cores.html'" style="cursor:pointer">
+                    <i class="fa fa-paint-brush fa-4x mb-3" style="color: #E1306C;"></i>
+                    <h4>Catálogo</h4>
+                    <p class="text-muted">Cores de unhas disponíveis</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-produtos.html'" style="cursor:pointer">
+                    <i class="fa fa-shopping-bag fa-4x mb-3" style="color: #E1306C;"></i>
+                    <h4>Loja</h4>
+                    <p class="text-muted">Gerir stock e produtos</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const _supabase = supabase.createClient('https://vonvfugrkkvkqcekcwdo.supabase.co', 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc');
+
+        async function handleLogout() {
+            if(confirm("Deseja mesmo sair da área administrativa?")) {
+                await _supabase.auth.signOut();
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>

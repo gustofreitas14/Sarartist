@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Gestão de Serviços</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-page">
+
+    <main class="admin-main" style="margin-left: 0; padding: 40px;">
+        <header class="admin-header d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <a href="admin-dashboard.html" class="btn btn-sm btn-outline-secondary mb-2">
+                    <i class="fa fa-arrow-left"></i> Voltar ao Hub
+                </a>
+                <div class="d-flex align-items-center">
+                    <span style="font-size: 30px; margin-right: 15px;">✂️</span>
+                    <h2 class="mb-0">Gestão de Serviços</h2>
+                </div>
+            </div>
+            <button class="btn-admin-add" onclick="abrirModal()">+ Novo Serviço</button>
+        </header>
+
+        <section class="admin-tab-content active">
+            <div class="row" id="grid-servicos">
+                <div class="col-12 text-center p-5">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i><br>A carregar serviços...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="central-modal">
+            <button class="modal-close" onclick="fecharModais()">&times;</button>
+            
+            <h4 class="mb-4">Novo Serviço</h4>
+            
+            <div class="form-group mb-3">
+                <label>Nome do Serviço</label>
+                <input type="text" id="add-servico-nome" class="form-control" >
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Preço Base (€)</label>
+                <input type="number" id="add-servico-preco" class="form-control" >
+            </div>
+
+            <div class="form-group mb-4">
+                <label>Duração (minutos)</label>
+                <input type="number" id="add-servico-duracao" class="form-control" >
+            </div>
+
+            <button class="btn-confirmar w-100" onclick="gravarServico()">Gravar Serviço</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        $(document).ready(function() {
+            verificarAcessoAdmin();
+            carregarServicos();
+
+            // Fechar modal ao clicar fora da caixa branca
+            $('#modalOverlay').on('click', function(e) {
+                if (e.target === this) fecharModais();
+            });
+        });
+
+        async function verificarAcessoAdmin() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (!session) { window.location.href = 'login.html'; return; }
+
+            const { data: perfil } = await _supabase
+                .from('perfis')
+                .select('tipo_utilizador')
+                .eq('id', session.user.id)
+                .single();
+
+            if (!perfil || perfil.tipo_utilizador !== 'admin') { window.location.href = 'index.html'; }
+        }
+
+        async function carregarServicos() {
+            const { data, error } = await _supabase.from('servicos').select('*').order('nome');
+            
+            if (error) return console.error(error);
+
+            let html = '';
+            data.forEach(s => {
+                html += `
+                <div class="col-md-4 mb-4">
+                    <div class="admin-card p-4 shadow-sm" style="border-radius: 15px; position: relative; border-left: 5px solid #f1703a;">
+                        <button class="btn btn-link text-danger" style="position: absolute; top: 10px; right: 10px;" onclick="eliminarServico('${s.id}')">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                        <h4 class="mb-3">${s.nome}</h4>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fa fa-tag text-muted"></i> <strong>${s.preco_base}€</strong></span>
+                            <span><i class="fa fa-clock-o text-muted"></i> ${s.duracao_minutos} min</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            $('#grid-servicos').html(html || '<p class="text-center w-100">Sem serviços registados.</p>');
+        }
+
+        function abrirModal() { $('#modalOverlay').addClass('active'); }
+        function fecharModais() { $('#modalOverlay').removeClass('active'); }
+
+        async function gravarServico() {
+            const nome = $('#add-servico-nome').val();
+            const preco = $('#add-servico-preco').val();
+            const duracao = $('#add-servico-duracao').val();
+
+            if(!nome || !preco) return alert("Preencha o nome e o preço.");
+
+            const { error } = await _supabase
+                .from('servicos')
+                .insert([{ nome, preco_base: preco, duracao_minutos: duracao }]);
+
+            if (error) alert(error.message);
+            else {
+                fecharModais();
+                carregarServicos();
+                // Limpar campos
+                $('#add-servico-nome, #add-servico-preco, #add-servico-duracao').val('');
+            }
+        }
+
+        async function eliminarServico(id) {
+            if(confirm("Deseja mesmo remover este serviço?")) {
+                const { error } = await _supabase.from('servicos').delete().eq('id', id);
+                if (error) alert("Erro: Não pode apagar serviços que tenham marcações associadas.");
+                else carregarServicos();
+            }
+        }
+    </script>
+</body>
+</html>

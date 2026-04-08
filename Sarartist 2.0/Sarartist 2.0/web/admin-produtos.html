@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Gestão de Produtos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-page">
+
+    <main class="admin-main" style="margin-left: 0; padding: 40px;">
+        <header class="admin-header d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <a href="admin-dashboard.html" class="btn btn-sm btn-outline-secondary mb-2">
+                    <i class="fa fa-arrow-left"></i> Voltar ao Hub
+                </a>
+                <div class="d-flex align-items-center">
+                    <span style="font-size: 30px; margin-right: 15px;">🛍️</span>
+                    <h2 class="mb-0">Gestão de Inventário</h2>
+                </div>
+            </div>
+            <button class="btn-admin-add" onclick="abrirModal()">+ Adicionar Produto</button>
+        </header>
+
+        <section class="admin-tab-content active">
+            <div class="row" id="grid-produtos">
+                <div class="col-12 text-center p-5">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i><br>A carregar produtos...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="central-modal">
+            <button class="modal-close" onclick="fecharModais()">&times;</button>
+            
+            <h4 class="mb-4">Novo Produto</h4>
+            
+            <div class="form-group mb-3">
+                <label>Nome do Produto</label>
+                <input type="text" id="p-nome" class="form-control" placeholder="Ex: Creme Hidratante">
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 form-group mb-3">
+                    <label>Preço (€)</label>
+                    <input type="number" id="p-preco" class="form-control" step="0.01" placeholder="0.00">
+                </div>
+                <div class="col-md-6 form-group mb-3">
+                    <label>Stock</label>
+                    <input type="number" id="p-stock" class="form-control" placeholder="0">
+                </div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Código de Barras / Ref.</label>
+                <input type="text" id="p-barcode" class="form-control" placeholder="Ex: 560123456789">
+            </div>
+
+            <div class="form-group mb-4">
+                <label>Imagem do Produto (do PC)</label>
+                <input type="file" id="p-imagem-file" class="form-control" accept="image/*">
+                <small class="text-muted d-block mt-1">Selecione uma imagem (JPG, PNG, etc.) do seu computador.</small>
+            </div>
+
+            <button class="btn-confirmar w-100" id="btn-gravar" onclick="gravarProduto()">Registar na Loja</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        $(document).ready(function() {
+            verificarAcessoAdmin();
+            carregarProdutos();
+
+            $('#modalOverlay').on('click', function(e) {
+                if (e.target === this) fecharModais();
+            });
+        });
+
+        async function verificarAcessoAdmin() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (!session) { window.location.href = 'login.html'; return; }
+            const { data: perfil } = await _supabase.from('perfis').select('tipo_utilizador').eq('id', session.user.id).single();
+            if (!perfil || perfil.tipo_utilizador !== 'admin') { window.location.href = 'index.html'; }
+        }
+
+        async function carregarProdutos() {
+            const { data, error } = await _supabase.from('produtos').select('*').order('nome');
+            if (error) return console.error(error);
+
+            let html = '';
+            data.forEach(p => {
+                const imgThumb = p.imagem_url || 'images/default-product.jpg';
+                html += `
+                <div class="col-md-3 mb-4">
+                    <div class="admin-card p-3 text-center shadow-sm" style="position: relative; border-top: 5px solid #f1703a; border-radius: 15px;">
+                        <button class="btn btn-link text-danger" style="position: absolute; top: 5px; right: 5px;" onclick="eliminarProduto('${p.id}')">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                        <div style="background: url('${imgThumb}') center/cover; width:80px; height:80px; border-radius:10px; margin: 10px auto; border: 1px solid #eee;"></div>
+                        <h5 class="mb-1" style="font-size: 1rem;">${p.nome}</h5>
+                        <p class="mb-1 text-primary"><strong>${p.preco.toFixed(2)}€</strong></p>
+                        <p class="mb-2"><span class="badge ${p.stock > 0 ? 'badge-success' : 'badge-danger'}" style="padding: 5px 10px;">Stock: ${p.stock}</span></p>
+                        <small class="text-muted">Ref: ${p.codigo_barras || 'N/A'}</small>
+                    </div>
+                </div>`;
+            });
+            $('#grid-produtos').html(html || '<p class="text-center w-100">Nenhum produto registado.</p>');
+        }
+
+        function abrirModal() { $('#modalOverlay').addClass('active'); }
+        function fecharModais() { $('#modalOverlay').removeClass('active'); }
+
+        async function gravarProduto() {
+            const btn = $('#btn-gravar');
+            btn.prop('disabled', true).text('A carregar imagem...');
+
+            const nome = $('#p-nome').val();
+            const preco = parseFloat($('#p-preco').val());
+            const stock = parseInt($('#p-stock').val());
+            const barcode = $('#p-barcode').val();
+            const imagemFile = $('#p-imagem-file')[0].files[0]; // Ficheiro selecionado
+
+            if(!nome || isNaN(preco)) {
+                alert("Por favor, preencha o nome e o preço.");
+                btn.prop('disabled', false).text('Registar na Loja');
+                return;
+            }
+
+            let finalImageUrl = null;
+
+            // 1. Lógica de Upload da Imagem
+            if (imagemFile) {
+                const fileExt = imagemFile.name.split('.').pop();
+                const fileName = `${Date.now()}.${fileExt}`; // Nome único para evitar conflitos
+                const filePath = `produtos/${fileName}`;
+
+                const { data: uploadData, error: uploadError } = await _supabase.storage
+                    .from('imagens-produtos')
+                    .upload(filePath, imagemFile);
+
+                if (uploadError) {
+                    alert("Erro ao carregar imagem: " + uploadError.message);
+                    btn.prop('disabled', false).text('Registar na Loja');
+                    return;
+                }
+
+                // Obter a URL pública da imagem carregada
+                const { data: publicUrlData } = _supabase.storage
+                    .from('imagens-produtos')
+                    .getPublicUrl(filePath);
+                
+                finalImageUrl = publicUrlData.publicUrl;
+            }
+
+            // 2. Gravar o Produto na Tabela
+            const { error: insertError } = await _supabase
+                .from('produtos')
+                .insert([{ 
+                    nome: nome, 
+                    preco: preco, 
+                    stock: stock || 0,
+                    codigo_barras: barcode,
+                    imagem_url: finalImageUrl // Link do Storage
+                }]);
+
+            if (insertError) {
+                alert("Erro ao gravar produto: " + insertError.message);
+            } else {
+                fecharModais();
+                carregarProdutos();
+                // Limpar campos
+                $('#p-nome, #p-preco, #p-stock, #p-barcode, #p-imagem-file').val('');
+            }
+            btn.prop('disabled', false).text('Registar na Loja');
+        }
+
+        async function eliminarProduto(id) {
+            if(confirm("Tem a certeza que deseja eliminar este produto?")) {
+                const { error } = await _supabase.from('produtos').delete().eq('id', id);
+                if (error) alert("Erro: " + error.message);
+                else carregarProdutos();
+            }
+        }
+    </script>
+</body>
+</html>

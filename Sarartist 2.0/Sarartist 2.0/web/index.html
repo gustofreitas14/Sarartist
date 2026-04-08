@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Sarartist | Home</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="keywords" content="Sarartist, Estética, Manicure, Pedicure, Maquilhagem, Massagens" />
+    
+    <script type="application/x-javascript"> 
+        addEventListener("load", function() { setTimeout(hideURLbar, 0); }, false); 
+        function hideURLbar(){ window.scrollTo(0,1); } 
+    </script>
+
+    <link href="css/bootstrap.css" type="text/css" rel="stylesheet" media="all">
+    <link href="css/style.css" type="text/css" rel="stylesheet" media="all">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <link href="css/wickedpicker.css" rel="stylesheet" type='text/css' media="all" />
+    <link rel="stylesheet" href="css/jquery-ui.css" />
+    
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link href='//fonts.googleapis.com/css?family=Text+Me+One' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Roboto+Condensed:400,300,300italic,400italic,700,700italic' rel='stylesheet' type='text/css'>
+</head>
+
+<body>
+    <div class="video jarallax" data-vide-bg="video/spa">
+        <div id="header-placeholder"></div>
+
+        <div class="banner-w3ltext page-header__content w3layouts">
+            <div class="text-bg">
+                <svg>
+                    <defs>
+                        <mask id="mask" x="0" y="0" width="100%" height="100%">
+                            <rect id="alpha" x="0" y="0" width="100%" height="100%" />
+                            <text id="title1" x="50%" y="30%" dy="1em" letter-spacing="0.02em">Sarartist</text>
+                        </mask>
+                    </defs>
+                    <rect id="base" x="0" y="0" width="100%" height="100%" mask="url(#mask)" />
+                </svg>
+            </div>
+            <p class="bnrw3-agiletext">Oferecemos serviços de manicure, pedicure, maquilhagem e massagens de relaxamento, além de produtos de beleza de qualidade. Relaxe e deixe-nos cuidar de si.</p>
+        </div>
+    </div>
+
+    <div class="about wthree-about">
+        <div class="container">
+            <div class="social-wthree-icons bnragile-icons">
+                <ul>
+                    <li><a href="https://facebook.com/" target="_blank" class="fa fa-facebook icon icon-border facebook"> </a></li>
+                    <li><a href="https://www.instagram.com/sarafreitas_estetica_saude/" target="_blank" class="fa fa-instagram icon icon-border instagram"> </a></li>
+                    <li><a href="https://tiktok.com/" target="_blank" class="fa fa-music icon icon-border tiktok"> </a></li>
+                </ul>
+                <div class="clearfix"> </div>
+            </div>
+            <div class="about-section">
+                <div class="col-md-7 ab-left w3-agileits">
+                    <div class="grid">
+                        <div class="col-xs-6 abt-w3limg">
+                            <figure class="effect-jazz">
+                                <img src="images/img1.jpg" alt="" />
+                                <figcaption>
+                                    <h4>Nails<span>Art</span></h4>
+                                    <p>Cuidamos das suas mãos com os melhores produtos.</p>
+                                </figcaption>
+                            </figure>
+                        </div>
+                        <div class="col-xs-6 abt-w3limg">
+                            <figure class="effect-jazz">
+                                <img src="images/img2.jpg" alt="" />
+                                <figcaption>
+                                    <h4>Relax<span>Time</span></h4>
+                                    <p>Massagens pensadas para o seu bem-estar total.</p>
+                                </figcaption>
+                            </figure>
+                        </div>
+                        <div class="clearfix"> </div>
+                    </div>
+                </div>
+                <div class="col-md-5 ab-text w3-agileits">
+                    <h3 class="agileits-title">Bem-vinda</h3>
+                    <h6>Espaço dedicado à sua beleza e saúde</h6>
+                    <p>Encontre um momento de paz no seu dia. Com profissionais qualificados, garantimos um serviço personalizado e de alta qualidade.</p>
+                    <div class="start">
+                        <a href="loja.html" class="hvr-bounce-to-bottom">Ir para a Loja</a>
+                    </div>
+                </div>
+                <div class="clearfix"> </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="reservation-info jarallax">
+        <div class="reservation">
+            <div class="container">
+                <h2 class="agileits-title w3title2">Agende a sua Visita</h2>
+                <div class="book-reservation text-center">
+                    <p style="color: #fff; margin-bottom: 20px;">Clique abaixo para escolher o seu serviço e horário.</p>
+                    <div class="make">
+                        <a href="marcacao.html" style="display: inline-block; padding: 15px 30px; background: #f1703a; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">Fazer Marcação Online</a>
+                    </div>
+                </div>
+                <div class="clearfix"> </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-placeholder"></div>
+
+    <script src="js/jquery.vide.min.js"></script>
+    <script src="js/jarallax.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <script src="js/SmoothScroll.min.js"></script>
+
+    <script type="text/javascript">
+        $(function () {
+            // 1. Carregamento do Header
+            $("#header-placeholder").load("header.html");
+
+            // 2. Carregamento do Footer
+            $("#footer-placeholder").load("footer.html");
+
+            // 3. Efeito Parallax
+            $('.jarallax').jarallax({ speed: 0.5, imgWidth: 1366, imgHeight: 768 });
+
+            // 4. Lógica de Scroll do Header
+            $(window).scroll(function () {
+                if ($(this).scrollTop() > 50) {
+                    $('.w3header').addClass('scrolled');
+                } else {
+                    $('.w3header').removeClass('scrolled');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

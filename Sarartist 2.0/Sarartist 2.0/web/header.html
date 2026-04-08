@@ -1,0 +1,84 @@
+<div class="w3header">
+    <div class="container">
+        <nav class="navbar navbar-default">
+            <div class="navbar-header">
+                <div class="logo-container">
+                    <a href="index.html">
+                        <img src="images/Sarartist-new.png" alt="Sarartist Logo" class="logo-img logo-white">
+                        <img src="images/Sarartist-new.png" alt="Sarartist Logo" class="logo-img logo-colored">
+                    </a>
+                </div>
+
+                <button type="button" class="navbar-toggle" id="openMenu" style="cursor: pointer !important; position: relative; z-index: 9999;">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+            </div>
+        </nav>
+    </div>
+</div>
+
+<div id="sideDrawer" class="side-drawer" style="z-index: 10000;">
+    <div class="drawer-header">
+        <span class="drawer-logo">Menu</span>
+        <button id="closeMenu" class="close-btn">&times;</button>
+    </div>
+    <ul class="drawer-menu">
+        <li><a href="index.html"><i class="fa fa-home"></i> Home</a></li>
+        <li><a href="about.html"><i class="fa fa-user"></i> About</a></li> 
+        <li><a href="marcacao.html"><i class="fa fa-briefcase"></i> Marcação</a></li>
+        <li><a href="loja.html"><i class="fa fa-shopping-cart"></i> Loja</a></li>
+        
+        <li id="menu-logout-item" style="display:none; border-top: 1px solid #eee; margin-top: 10px;">
+            <a href="javascript:void(0)" onclick="handleUserLogout()" style="color: #d9534f !important;">
+                <i class="fa fa-sign-out"></i> Terminar Sessão
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div id="drawerOverlay" class="drawer-overlay" style="z-index: 9998;"></div>
+
+<script>
+    // Inicialização do Supabase
+    const _headerSupabase = supabase.createClient('https://vonvfugrkkvkqcekcwdo.supabase.co', 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc');
+
+    // SOLUÇÃO PARA O CLIQUE: Usar o (document).on para capturar cliques em elementos dinâmicos
+    $(document).ready(function() {
+        
+        // Remove eventos antigos e adiciona novos para evitar duplicados
+        $(document).off('click', '#openMenu').on('click', '#openMenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("Menu Hamburger clicado!"); // Aparece na consola (F12) para teste
+            $('#sideDrawer').addClass('open');
+            $('#drawerOverlay').addClass('active');
+        });
+
+        $(document).off('click', '#closeMenu, #drawerOverlay').on('click', '#closeMenu, #drawerOverlay', function(e) {
+            e.preventDefault();
+            $('#sideDrawer').removeClass('open');
+            $('#drawerOverlay').removeClass('active');
+        });
+
+        verificarSessaoNoMenu();
+    });
+
+    async function verificarSessaoNoMenu() {
+        const { data: { session } } = await _headerSupabase.auth.getSession();
+        if (session) {
+            $('#menu-logout-item').show();
+        }
+    }
+
+    async function handleUserLogout() {
+        if(confirm("Deseja mesmo terminar a sua sessão?")) {
+            const { error } = await _headerSupabase.auth.signOut();
+            if (!error) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+        }
+    }
+</script>

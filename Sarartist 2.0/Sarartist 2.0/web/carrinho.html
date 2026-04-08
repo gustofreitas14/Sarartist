@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <title>Sarartist | Finalizar Compra</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            // SUBSTITUI PELA TUA PUBLIC KEY (Account > API Keys)
+            emailjs.init("9fouRWvpbEfZt2AE7");
+        })();
+    </script>
+</head>
+<body class="bg-light">
+    <div id="header-placeholder"></div>
+
+    <section class="checkout-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-7">
+                    <div class="checkout-card">
+                        <h4><i class="fa fa-user"></i> Identificação</h4>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label>Nome Completo *</label>
+                                <input type="text" id="c-nome" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Telemóvel *</label>
+                                <input type="tel" id="c-tel" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>E-mail (para fatura) *</label>
+                                <input type="email" id="c-email" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkout-card">
+                        <h4><i class="fa fa-truck"></i> Entrega</h4>
+                        <label class="method-option">
+                            <input type="radio" name="entrega" value="levantamento" checked onchange="toggleMorada()">
+                            <span class="checkmark"></span>
+                            <span class="method-content">Levantamento em Loja (Grátis)</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="entrega" value="envio" onchange="toggleMorada()">
+                            <span class="checkmark"></span>
+                            <span class="method-content">Envio p/ Transportadora (+4.50€)</span>
+                        </label>
+
+                        <div id="seccao-morada" style="display:none; margin-top: 20px;">
+                            <label>Morada Completa</label>
+                            <input type="text" id="c-morada" class="form-control mb-2" placeholder="Rua, nº, andar...">
+                            <div class="row">
+                                <div class="col-6"><input type="text" id="c-cp" class="form-control" placeholder="Cód. Postal"></div>
+                                <div class="col-6"><input type="text" id="c-cidade" class="form-control" placeholder="Cidade"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkout-card">
+                        <h4><i class="fa fa-credit-card"></i> Pagamento</h4>
+                        <label class="method-option">
+                            <input type="radio" name="pagamento" value="MB WAY" checked>
+                            <span class="checkmark"></span>
+                            <span class="method-content">MB WAY</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="pagamento" value="Transferência">
+                            <span class="checkmark"></span>
+                            <span class="method-content">Referência Multibanco / Transferência</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="checkout-card sticky-top" style="top: 100px;">
+                        <h4>Resumo</h4>
+                        <div id="lista-resumo" class="mb-3"></div>
+                        <div class="summary-item"><span>Subtotal:</span> <span id="val-subtotal">0.00€</span></div>
+                        <div class="summary-item"><span>Portes:</span> <span id="val-portes">0.00€</span></div>
+                        <div class="summary-item mt-2 border-top pt-2">
+                            <strong>Total:</strong>
+                            <strong class="total-final" id="val-total">0.00€</strong>
+                        </div>
+                        <button class="btn-finish" id="btn-finalizar" onclick="enviarPedido()">
+                            Confirmar e Receber Fatura
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div id="footer-placeholder"></div>
+
+    <script>
+        $(document).ready(function() {
+            $("#header-placeholder").load("header.html", () => $('.w3header').addClass('scrolled'));
+            $("#footer-placeholder").load("footer.html");
+            renderizarResumo();
+        });
+
+        function renderizarResumo() {
+            const carrinho = JSON.parse(localStorage.getItem('sarartist_carrinho')) || [];
+            if(carrinho.length === 0) return window.location.href = 'loja.html';
+
+            let html = '';
+            let subtotal = 0;
+            carrinho.forEach(item => {
+                const sub = item.preco * item.quantidade;
+                subtotal += sub;
+                html += `<div class="d-flex justify-content-between small">
+                            <span>${item.quantidade}x ${item.nome}</span>
+                            <span>${sub.toFixed(2)}€</span>
+                         </div>`;
+            });
+
+            $('#lista-resumo').html(html);
+            $('#val-subtotal').text(subtotal.toFixed(2) + '€');
+            atualizarTotal(subtotal);
+        }
+
+        function toggleMorada() {
+            const isEnvio = $('input[name="entrega"]:checked').val() === 'envio';
+            $('#seccao-morada').toggle(isEnvio);
+            renderizarResumo(); 
+        }
+
+        function atualizarTotal(subtotal) {
+            const portes = $('input[name="entrega"]:checked').val() === 'envio' ? 4.50 : 0;
+            $('#val-portes').text(portes === 0 ? 'Grátis' : portes.toFixed(2) + '€');
+            $('#val-total').text((subtotal + portes).toFixed(2) + '€');
+        }
+
+        async function enviarPedido() {
+            const nome = $('#c-nome').val();
+            const email = $('#c-email').val();
+            const tel = $('#c-tel').val();
+
+            if(!nome || !email || !tel) return alert("Preencha os campos obrigatórios!");
+
+            const carrinho = JSON.parse(localStorage.getItem('sarartist_carrinho'));
+            let itensTexto = carrinho.map(i => `${i.quantidade}x ${i.nome} (${(i.preco * i.quantidade).toFixed(2)}€)`).join('\n');
+
+            const params = {
+                to_name: nome,
+                to_email: email,
+                items_list: itensTexto,
+                total_price: $('#val-total').text(),
+                payment_method: $('input[name="pagamento"]:checked').val(),
+                delivery_type: $('input[name="entrega"]:checked').val(),
+                address: $('#c-morada').val() || "Levantamento em Loja"
+            };
+
+            $('#btn-finalizar').prop('disabled', true).text('A processar...');
+
+            // SUBSTITUI PELOS TEUS IDs DO EMAILJS
+            emailjs.send('service_5237gxv', 'template_khktxsh', params)
+                .then(() => {
+                    alert("Encomenda enviada! Verifique o seu e-mail.");
+                    localStorage.removeItem('sarartist_carrinho');
+                    window.location.href = 'index.html';
+                }, (err) => {
+                    alert("Erro ao enviar e-mail. Tente novamente.");
+                    $('#btn-finalizar').prop('disabled', false).text('Confirmar e Receber Fatura');
+                });
+        }
+    </script>
+</body>
+</html>

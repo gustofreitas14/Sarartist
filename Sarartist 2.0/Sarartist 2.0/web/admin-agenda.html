@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Gestão de Agenda</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-page">
+
+    <main class="admin-main" style="margin-left: 0; padding: 40px;">
+        <header class="admin-header d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <a href="admin-dashboard.html" class="btn btn-sm btn-outline-secondary mb-2">
+                    <i class="fa fa-arrow-left"></i> Voltar ao Hub
+                </a>
+                <h2>📅 Agenda de Marcações</h2>
+            </div>
+            <div id="user-info" class="text-right">
+                <strong>Sara Freitas</strong><br>
+                <small class="text-success">Modo Administração</small>
+            </div>
+        </header>
+
+        <section id="tab-agenda" class="admin-tab-content active">
+            <div class="admin-card">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead style="background: #f8f9fa;">
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Serviço</th>
+                                <th>Data/Hora</th>
+                                <th>Cor</th>
+                                <th>Estado</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-agendamentos">
+                            <tr>
+                                <td colspan="6" class="text-center p-5">
+                                    <i class="fa fa-spinner fa-spin fa-2x mb-3"></i><br>
+                                    A carregar agenda...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Configurações Supabase
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        $(document).ready(function() {
+            verificarAcessoAdmin();
+            carregarAgendamentos();
+            configurarRealtime();
+        });
+
+        // Proteção de Rota
+        async function verificarAcessoAdmin() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const { data: perfil } = await _supabase
+                .from('perfis')
+                .select('tipo_utilizador')
+                .eq('id', session.user.id)
+                .single();
+
+            if (!perfil || perfil.tipo_utilizador !== 'admin') {
+                window.location.href = 'index.html';
+            }
+        }
+
+        async function carregarAgendamentos() {
+            // Busca todos os agendamentos ordenados por data e hora
+            const { data, error } = await _supabase
+                .from('agendamentos')
+                .select('*')
+                .order('data_reserva', { ascending: true })
+                .order('hora_reserva', { ascending: true });
+
+            if (error) {
+                console.error("Erro:", error);
+                return;
+            }
+
+            let html = '';
+            if (data && data.length > 0) {
+                data.forEach(item => {
+                    const corVisual = item.cor_escolhida ? 
+                        `<div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="background-color: ${item.cor_escolhida}; width:15px; height:15px; border-radius:50%; border:1px solid #ddd;"></span>
+                            <small>${item.cor_escolhida}</small>
+                        </div>` : 
+                        '<small class="text-muted">Nenhuma</small>';
+
+                    html += `
+                    <tr>
+                        <td>
+                            <strong>${item.cliente_nome}</strong><br>
+                            <small class="text-muted"><i class="fa fa-phone"></i> ${item.cliente_tel}</small>
+                        </td>
+                        <td><span class="badge badge-info" style="background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; padding: 5px 10px;">${item.servico_nome}</span></td>
+                        <td>
+                            <i class="fa fa-calendar-o"></i> ${formatarData(item.data_reserva)}<br>
+                            <i class="fa fa-clock-o"></i> <strong>${item.hora_reserva.substring(0,5)}</strong>
+                        </td>
+                        <td>${corVisual}</td>
+                        <td>
+                            <span class="status-pill" style="padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; background: ${item.pago ? '#dcfce7' : '#fef9c3'}; color: ${item.pago ? '#166534' : '#854d0e'}">
+                                ${item.pago ? 'PAGO' : 'PENDENTE'}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-light" onclick="eliminarAgendamento('${item.id}')" title="Cancelar">
+                                <i class="fa fa-trash text-danger"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+            } else {
+                html = '<tr><td colspan="6" class="text-center p-4">Não existem marcações registadas.</td></tr>';
+            }
+            $('#lista-agendamentos').html(html);
+        }
+
+        // Função auxiliar para formatar data (AAAA-MM-DD -> DD/MM/AAAA)
+        function formatarData(dataStr) {
+            const d = dataStr.split('-');
+            return `${d[2]}/${[d[1]]}/${d[0]}`;
+        }
+
+        // Eliminar marcação (Cancelamento)
+        async function eliminarAgendamento(id) {
+            if(confirm("Tem a certeza que deseja cancelar esta marcação?")) {
+                const { error } = await _supabase
+                    .from('agendamentos')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) alert("Erro ao cancelar: " + error.message);
+                else carregarAgendamentos();
+            }
+        }
+
+        // Realtime: Atualiza se houver novas marcações enquanto a Sara olha para o ecrã
+        function configurarRealtime() {
+            _supabase
+                .channel('agenda-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'agendamentos' }, () => {
+                    carregarAgendamentos();
+                })
+                .subscribe();
+        }
+    </script>
+</body>
+</html>
