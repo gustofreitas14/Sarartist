@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Registar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <img src="images/Sarartist.png" alt="Logo">
+            </div>
+            <h3>Criar Conta</h3>
+            <div class="auth-form">
+                <div class="auth-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="reg-nome" placeholder="Maria Silva">
+                </div>
+                <div class="auth-group">
+                    <label>Telemóvel</label>
+                    <input type="tel" id="reg-tel" placeholder="912345678">
+                </div>
+                <div class="auth-group">
+                    <label>E-mail</label>
+                    <input type="email" id="reg-email" placeholder="exemplo@email.com">
+                </div>
+                <div class="auth-group">
+                    <label>Palavra-passe</label>
+                    <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres">
+                </div>
+                <button id="btnRegistar" class="btn-auth-submit" onclick="handleSignUp()">Registar</button>
+                <p class="auth-switch">Já tem conta? <a href="login.html">Fazer Login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações do Supabase
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function handleSignUp() {
+            const email = $('#reg-email').val();
+            const password = $('#reg-password').val();
+            const fullName = $('#reg-nome').val();
+            const phone = $('#reg-tel').val();
+
+            if(!email || !password || !fullName || !phone) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            $('#btnRegistar').prop('disabled', true).text('A criar conta...');
+
+            // Registo no Supabase Auth com metadados
+            const { data, error } = await _supabase.auth.signUp({
+                email, 
+                password,
+                options: { 
+                    data: { 
+                        full_name: fullName, 
+                        phone: phone 
+                    } 
+                }
+            });
+
+            if (error) {
+                alert("Erro: " + error.message);
+                $('#btnRegistar').prop('disabled', false).text('Registar');
+            } else {
+                alert("Sucesso! Verifique o seu e-mail ou faça login (se a confirmação estiver desativada).");
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>

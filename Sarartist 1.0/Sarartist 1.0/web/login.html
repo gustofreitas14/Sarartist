@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <img src="images/Sarartist-new.png" alt="Logo">
+            </div>
+            <h3>Bem-vinda de volta</h3>
+            <div class="auth-form">
+                <div class="auth-group">
+                    <label>E-mail</label>
+                    <input type="email" id="email" placeholder="teu@email.com">
+                </div>
+                <div class="auth-group">
+                    <label>Palavra-passe</label>
+                    <input type="password" id="password" placeholder="••••••••">
+                </div>
+                <button id="btnLogin" class="btn-auth-submit" onclick="handleLogin()">Entrar</button>
+                <p class="auth-switch">Esqueceu-se da senha? <a href="#">Recuperar</a></p>
+                <p class="auth-switch">Não tem conta? <a href="registo.html">Registar</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações do Supabase
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function handleLogin() {
+            const email = $('#email').val();
+            const password = $('#password').val();
+
+            if(!email || !password) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            $('#btnLogin').prop('disabled', true).text('A entrar...');
+
+            // Autenticação oficial do Supabase
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (error) {
+                alert("Erro: " + error.message);
+                $('#btnLogin').prop('disabled', false).text('Entrar');
+            } else {
+                // Verificar se o utilizador é Admin ou Cliente na tabela 'perfis'
+                verificarTipoUtilizador(data.user.id);
+            }
+        }
+
+        async function verificarTipoUtilizador(userId) {
+            const { data, error } = await _supabase
+                .from('perfis')
+                .select('tipo_utilizador')
+                .eq('id', userId)
+                .single();
+
+            if (data && data.tipo_utilizador === 'admin') {
+                // Se for a Sara, vai para a gestão
+                window.location.href = 'admin-dashboard.html';
+            } else {
+                // Se for cliente, volta para a home ou marcações
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>

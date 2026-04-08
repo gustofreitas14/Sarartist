@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Personalizar - Passo 3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" type="text/css" rel="stylesheet" media="all">
+    <link href="css/style.css" type="text/css" rel="stylesheet" media="all">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="pg-personalizar">
+    <div id="header-placeholder"></div>
+
+    <div class="container container-main-booking">
+        <div class="booking-container-main">
+            <div class="booking-stepper">
+                <div class="step-item completed" onclick="window.location.href='marcacao.html'">
+                    <div class="step-circle">1</div><span>Serviço</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item completed" onclick="window.location.href='escolher-data.html'">
+                    <div class="step-circle">2</div><span>Data e Hora</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item active" id="step3">
+                    <div class="step-circle">3</div><span>Personalizar</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" id="step4">
+                    <div class="step-circle">4</div><span>Confirmação</span>
+                </div>
+            </div>
+
+            <div class="row mt-5">
+                <div class="col-md-6">
+                    <div class="nail-preview-container">
+                        <div class="hand-wrapper">
+                            <img src="images/hand-mask.png" class="hand-image">
+                            <div id="nailColor" class="nail-color-layer"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="booking-card-white">
+                        <h4 class="mb-4">Escolha a sua Cor</h4>
+                        <div id="colorGrid">
+                            <div class="text-center p-3">
+                                <i class="fa fa-spinner fa-spin"></i> A carregar catálogo...
+                            </div>
+                        </div>
+                        <button class="btn-confirmar ready w-100 mt-4" onclick="window.location.href='confirmacao.html'">Continuar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer-placeholder"></div>
+
+    <script>
+        // Configurações do Supabase
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        $(function () {
+            // CARREGAMENTO DO HEADER COM CORREÇÃO DO MENU
+            $("#header-placeholder").load("header.html", function() {
+                // Eventos do Menu Hamburger para garantir funcionalidade
+                $(document).on('click', '#openMenu', function() {
+                    $('#sideDrawer').addClass('open');
+                    $('#drawerOverlay').addClass('active');
+                });
+
+                $(document).on('click', '#closeMenu, #drawerOverlay', function() {
+                    $('#sideDrawer').removeClass('open');
+                    $('#drawerOverlay').removeClass('active');
+                });
+            });
+
+            $("#footer-placeholder").load("footer.html");
+
+            // Carregar cores da base de dados
+            carregarCoresBD();
+
+            $(window).scroll(function () {
+                if ($(this).scrollTop() > 50) { $('.w3header').addClass('scrolled'); } 
+                else { $('.w3header').removeClass('scrolled'); }
+            });
+        });
+
+        async function carregarCoresBD() {
+            const { data: cores, error } = await _supabase
+                .from('catalogo_unhas')
+                .select('*')
+                .eq('disponivel', true);
+
+            if (error) {
+                console.error("Erro ao carregar cores:", error);
+                $('#colorGrid').html('<p>Erro ao carregar cores.</p>');
+                return;
+            }
+
+            const grid = $('#colorGrid').empty();
+            
+            cores.forEach(c => {
+                grid.append(`
+                    <div class="color-dot" 
+                         style="background: ${c.hex_code};" 
+                         title="${c.nome_cor}"
+                         onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')">
+                    </div>
+                `);
+            });
+        }
+
+        function aplicarCor(elemento, hex, nome) {
+            $('#nailColor').css('background-color', hex);
+            $('.color-dot').removeClass('active');
+            $(elemento).addClass('active');
+            
+            localStorage.setItem('escolha_cor_hex', hex);
+            localStorage.setItem('escolha_cor_nome', nome);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Sarartist | Gestão de Cores</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-page">
+
+    <main class="admin-main" style="margin-left: 0; padding: 40px;">
+        <header class="admin-header d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <a href="admin-dashboard.html" class="btn btn-sm btn-outline-secondary mb-2">
+                    <i class="fa fa-arrow-left"></i> Voltar ao Hub
+                </a>
+                <div class="d-flex align-items-center">
+                    <span style="font-size: 30px; margin-right: 15px;">🎨</span>
+                    <h2 class="mb-0">Catálogo de Vernizes</h2>
+                </div>
+            </div>
+            <button class="btn-admin-add" onclick="abrirModal()">+ Adicionar Verniz</button>
+        </header>
+
+        <section class="admin-tab-content active">
+            <div class="row" id="grid-cores">
+                <div class="col-12 text-center p-5">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i><br>A carregar catálogo...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="central-modal">
+            <button class="modal-close" onclick="fecharModais()">&times;</button>
+            
+            <h4 class="mb-4">Novo Verniz</h4>
+            
+            <div class="form-group mb-3">
+                <label>Nome da Cor</label>
+                <input type="text" id="add-cor-nome" class="form-control" placeholder="Ex: Vermelho Intenso">
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Código do Verniz (Marca)</label>
+                <input type="text" id="add-cor-codigo" class="form-control" placeholder="Ex: A23">
+            </div>
+
+            <div class="form-group mb-4">
+                <label>Cor Hexadecimal</label>
+                <div class="d-flex gap-2">
+                    <input type="text" id="add-cor-hex-text" class="form-control" placeholder="#FF0000" 
+                           oninput="$('#add-cor-hex-picker').val(this.value)">
+                    <input type="color" id="add-cor-hex-picker" class="form-control-color" value="#f1703a" 
+                           style="width: 60px; height: 38px; padding: 2px;"
+                           oninput="$('#add-cor-hex-text').val(this.value)">
+                </div>
+                <small class="text-muted d-block mt-1">Pode digitar o código ou escolher na paleta.</small>
+            </div>
+
+            <button class="btn-confirmar w-100" onclick="gravarCor()">Registar Verniz</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        $(document).ready(function() {
+            verificarAcessoAdmin();
+            carregarCores();
+
+            // Fechar modal ao clicar fora da caixa branca
+            $('#modalOverlay').on('click', function(e) {
+                if (e.target === this) fecharModais();
+            });
+        });
+
+        async function verificarAcessoAdmin() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (!session) { window.location.href = 'login.html'; return; }
+            
+            const { data: perfil } = await _supabase
+                .from('perfis')
+                .select('tipo_utilizador')
+                .eq('id', session.user.id)
+                .single();
+
+            if (!perfil || perfil.tipo_utilizador !== 'admin') {
+                window.location.href = 'index.html';
+            }
+        }
+
+        async function carregarCores() {
+            const { data, error } = await _supabase
+                .from('catalogo_unhas')
+                .select('*')
+                .order('codigo_verniz');
+
+            if (error) return console.error(error);
+
+            let html = '';
+            data.forEach(c => {
+                html += `
+                <div class="col-md-3 mb-4">
+                    <div class="admin-card p-3 text-center shadow-sm" style="position: relative; border-top: 5px solid ${c.hex_code}; border-radius: 15px;">
+                        <button class="btn btn-link text-danger" style="position: absolute; top: 5px; right: 5px;" onclick="eliminarCor('${c.id}')">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                        <div style="background:${c.hex_code}; width:45px; height:45px; border-radius:50%; margin: 10px auto; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"></div>
+                        <h5 class="mb-1" style="font-size: 1.1rem;">${c.nome_cor}</h5>
+                        <p class="mb-2"><span class="badge badge-dark" style="background: #333; padding: 5px 10px;">${c.codigo_verniz || 'S/C'}</span></p>
+                        <small class="text-muted" style="letter-spacing: 1px;">${c.hex_code.toUpperCase()}</small>
+                    </div>
+                </div>`;
+            });
+            $('#grid-cores').html(html || '<p class="text-center w-100">O catálogo está vazio.</p>');
+        }
+
+        function abrirModal() { $('#modalOverlay').addClass('active'); }
+        function fecharModais() { $('#modalOverlay').removeClass('active'); }
+
+        async function gravarCor() {
+            const nome = $('#add-cor-nome').val();
+            const codigo = $('#add-cor-codigo').val();
+            const hex = $('#add-cor-hex-text').val() || $('#add-cor-hex-picker').val();
+
+            if(!nome || !codigo) return alert("Por favor, preencha o nome e o código do verniz.");
+
+            const { error } = await _supabase
+                .from('catalogo_unhas')
+                .insert([{ 
+                    nome_cor: nome, 
+                    codigo_verniz: codigo, 
+                    hex_code: hex, 
+                    disponivel: true 
+                }]);
+
+            if (error) {
+                alert("Erro: " + error.message);
+            } else {
+                fecharModais();
+                carregarCores();
+                // Limpar campos
+                $('#add-cor-nome, #add-cor-codigo, #add-cor-hex-text').val('');
+            }
+        }
+
+        async function eliminarCor(id) {
+            if(confirm("Tem a certeza que deseja eliminar este verniz do catálogo?")) {
+                const { error } = await _supabase.from('catalogo_unhas').delete().eq('id', id);
+                if (error) alert("Erro: " + error.message);
+                else carregarCores();
+            }
+        }
+    </script>
+</body>
+</html>
