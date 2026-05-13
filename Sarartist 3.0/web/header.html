@@ -15,7 +15,6 @@
                     <span class="icon-bar"></span>
                 </button>
 
-                <!-- Botão dark mode posicionado à esquerda do hamburger -->
                 <button class="dark-mode-toggle" id="darkModeBtn" onclick="toggleDarkMode()" title="Modo escuro">
                     🌙
                 </button>
@@ -34,6 +33,12 @@
         <li><a href="about.html"><i class="fa fa-user"></i> About</a></li>
         <li><a href="marcacao.html"><i class="fa fa-briefcase"></i> Marcação</a></li>
         <li><a href="loja.html"><i class="fa fa-shopping-cart"></i> Loja</a></li>
+
+        <li id="menu-login-item" style="border-top: 1px solid #eee; margin-top: 10px;">
+            <a href="login.html">
+                <i class="fa fa-sign-in"></i> Iniciar Sessão
+            </a>
+        </li>
 
         <li id="menu-logout-item" style="display:none; border-top: 1px solid #eee; margin-top: 10px;">
             <a href="javascript:void(0)" onclick="handleUserLogout()" style="color: #d9534f !important;">
@@ -95,10 +100,15 @@
         verificarSessaoNoMenu();
     });
 
+    // Função atualizada para alternar entre Iniciar Sessão e Terminar Sessão
     async function verificarSessaoNoMenu() {
         const { data: { session } } = await _headerSupabase.auth.getSession();
         if (session) {
             $('#menu-logout-item').show();
+            $('#menu-login-item').hide();
+        } else {
+            $('#menu-logout-item').hide();
+            $('#menu-login-item').show();
         }
     }
 
@@ -107,7 +117,7 @@
             const { error } = await _headerSupabase.auth.signOut();
             if (!error) {
                 localStorage.clear();
-                window.location.href = 'login.html';
+                window.location.href = 'index.html'; // Redireciona para a home ao sair
             }
         }
     }

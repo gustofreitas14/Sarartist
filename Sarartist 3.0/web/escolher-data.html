@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
     <script>
-        // Aplicar dark mode antes de qualquer render para evitar flash
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
                 document.documentElement.style.backgroundColor = '#121212';
@@ -21,7 +20,6 @@
     <style>
         .flatpickr-calendar.inline { width: 100% !important; box-shadow: none !important; border: none !important; }
         .flatpickr-day.selected { background: #f1703a !important; border-color: #f1703a !important; }
-        /* Estilo para horários ocupados */
         .time-slot.occupied { background: #e0e0e0; color: #999; cursor: not-allowed; opacity: 0.6; pointer-events: none; }
     </style>
 </head>
@@ -62,7 +60,7 @@
                     <div class="booking-card-white">
                         <h4><i class="fa fa-clock-o"></i> Horários Disponíveis</h4>
                         <div id="loading-hours" style="display:none;" class="text-center p-3">
-                            <i class="fa fa-spinner fa-spin"></i> A verificar disponibilidade...
+                            <i class="fa fa-spinner fa-spin"></i> A calcular horários...
                         </div>
                         <div class="time-grid" id="timeGrid"></div>
                     </div>
@@ -79,88 +77,148 @@
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        // Configuração Supabase
         const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        $(function () {
-            $("#header-placeholder").load("header.html", function() {
-                $(document).on('click', '#openMenu', function() {
-                    $('#sideDrawer').addClass('open');
-                    $('#drawerOverlay').addClass('active');
-                });
-                $(document).on('click', '#closeMenu, #drawerOverlay', function() {
-                    $('#sideDrawer').removeClass('open');
-                    $('#drawerOverlay').removeClass('active');
-                });
-            });
+        async function protegerPagina() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (!session) {
+                alert("Por favor, inicie sessão para continuar a sua marcação.");
+                window.location.href = 'login.html';
+            }
+        }
+        protegerPagina();
 
+        $(function () {
+            $("#header-placeholder").load("header.html");
             $("#footer-placeholder").load("footer.html");
 
             $(window).scroll(function () {
-                if ($(this).scrollTop() > 50) { $('.w3header').addClass('scrolled'); } 
-                else { $('.w3header').removeClass('scrolled'); }
+                if ($(this).scrollTop() > 50) $('.w3header').addClass('scrolled'); 
+                else $('.w3header').removeClass('scrolled');
             });
 
             const servico = localStorage.getItem('servico_nome') || "Serviço";
-            const duracao = localStorage.getItem('servico_duracao') || "0";
+            const duracao = localStorage.getItem('servico_duracao') || "30";
             $('#tituloServico').text("Agendar " + servico);
             $('#detalheServico').text("Duração estimada: " + duracao + " minutos");
 
             flatpickr("#calendar-inline", {
                 inline: true,
                 minDate: "today",
-                disable: [
-                    function(date) {
-                        return (date.getDay() === 0); // Exemplo: desativa domingos
-                    }
-                ],
+                disable: [ function(date) { return (date.getDay() === 0); } ], // Desativa domingos
                 onChange: function(selectedDates, dateStr) {
                     localStorage.setItem('reserva_data', dateStr);
-                    localStorage.removeItem('reserva_hora'); // Limpa hora ao mudar data
+                    localStorage.removeItem('reserva_hora');
                     $('#btnContinuar').prop('disabled', true).css('background', '#ccc');
                     buscarHorariosOcupados(dateStr);
                 }
             });
         });
 
+        // FUNÇÕES MATEMÁTICAS DE TEMPO
+        function timeToMins(timeStr) {
+            const partes = timeStr.split(':');
+            return parseInt(partes[0]) * 60 + parseInt(partes[1]);
+        }
+
+        function minsToTime(mins) {
+            const h = Math.floor(mins / 60).toString().padStart(2, '0');
+            const m = (mins % 60).toString().padStart(2, '0');
+            return `${h}:${m}`;
+        }
+
+        // BUSCA INTELIGENTE DE HORÁRIOS
         async function buscarHorariosOcupados(dataSelecionada) {
             $('#timeGrid').hide();
             $('#loading-hours').show();
 
-            // Consulta os agendamentos existentes para esta data
-            const { data, error } = await _supabase
-                .from('agendamentos')
-                .select('hora_reserva')
-                .eq('data_reserva', dataSelecionada);
+            try {
+                // 1. Vai buscar as marcações daquele dia
+                const { data: agendamentos, error: errAgendas } = await _supabase
+                    .from('agendamentos').select('hora_reserva, servico_nome').eq('data_reserva', dataSelecionada);
+                if (errAgendas) throw errAgendas;
 
-            if (error) {
-                console.error("Erro ao buscar horários:", error);
-                return;
+                // 2. Vai buscar os serviços para saber a duração de cada um
+                const { data: servicos, error: errServicos } = await _supabase
+                    .from('servicos').select('nome, duracao_minutos');
+                if (errServicos) throw errServicos;
+
+                // 3. Associa a duração a cada serviço
+                const mapaDuracoes = {};
+                servicos.forEach(s => mapaDuracoes[s.nome] = s.duracao_minutos);
+
+                // 4. Calcula os intervalos bloqueados em minutos
+                const intervalosOcupados = [];
+                if (agendamentos) {
+                    agendamentos.forEach(ag => {
+                        const horaInicioStr = ag.hora_reserva.substring(0, 5);
+                        const duracao = mapaDuracoes[ag.servico_nome] || 30; // 30 min por defeito se falhar
+                        const inicioMins = timeToMins(horaInicioStr);
+                        const fimMins = inicioMins + duracao;
+                        intervalosOcupados.push({ inicio: inicioMins, fim: fimMins });
+                    });
+                }
+
+                gerarBotoesHorario(intervalosOcupados);
+
+            } catch (err) {
+                console.error("Erro:", err);
+                $('#loading-hours').html('<span class="text-danger">Erro ao carregar horários. Verifique as permissões (RLS).</span>');
             }
-
-            // Cria uma lista apenas com as strings das horas ocupadas
-            const horasOcupadas = data.map(item => {
-                // Remove os segundos se a BD devolver HH:MM:SS
-                return item.hora_reserva.substring(0, 5);
-            });
-
-            gerarBotoesHorario(horasOcupadas);
         }
 
-        function gerarBotoesHorario(ocupados) {
+        // DESENHAR OS BOTÕES (AGORA COM OS HORÁRIOS FINAIS LIVRES)
+        function gerarBotoesHorario(intervalosOcupados) {
             $('#loading-hours').hide();
             const grid = $('#timeGrid').empty().show();
-            const horasDisponiveis = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "14:00", "14:30", "15:00", "15:30", "16:00"];
             
-            horasDisponiveis.forEach(h => {
-                const estaOcupado = ocupados.includes(h);
-                const classeExtra = estaOcupado ? "occupied" : "";
-                const acaoClick = estaOcupado ? "" : `onclick="selecionarHora(this, '${h}')"`;
+            // -------- CONFIGURAÇÕES DA LOJA --------
+            const abertura = timeToMins("09:00");
+            const inicioAlmoco = timeToMins("12:30"); 
+            const fimAlmoco = timeToMins("14:00");    
+            const ultimoHorario = timeToMins("18:00"); // Última hora que aparece para clicar
+            const step = 30; 
+            // ---------------------------------------
+            
+            const duracaoMeuServico = parseInt(localStorage.getItem('servico_duracao')) || 30;
+
+            // O ciclo agora vai até ao ultimoHorario (incluindo as 18:00)
+            for (let t = abertura; t <= ultimoHorario; t += step) {
                 
-                grid.append(`<div class="time-slot ${classeExtra}" ${acaoClick}>${h}</div>`);
-            });
+                // Não permite INICIAR uma marcação durante a hora de almoço
+                if (t >= inicioAlmoco && t < fimAlmoco) continue;
+
+                const horaString = minsToTime(t);
+                const fimEstimadoMeuServico = t + duracaoMeuServico;
+                
+                let estaOcupado = false;
+
+                // A restrição que impedia de passar das 18:00 FOI REMOVIDA AQUI.
+                
+                // O sistema APENAS verifica se colide com as marcações de OUTRAS CLIENTES:
+                for (let inter of intervalosOcupados) {
+                    // A) A minha hora de início cai a meio de uma marcação existente?
+                    if (t >= inter.inicio && t < inter.fim) {
+                        estaOcupado = true; break;
+                    }
+                    // B) Eu começo num horário livre, mas a DURAÇÃO do meu serviço vai atropelar a próxima cliente?
+                    if (t < inter.inicio && fimEstimadoMeuServico > inter.inicio) {
+                        estaOcupado = true; break;
+                    }
+                }
+
+                const classeExtra = estaOcupado ? "occupied" : "";
+                const acaoClick = estaOcupado ? "" : `onclick="selecionarHora(this, '${horaString}')"`;
+                
+                grid.append(`<div class="time-slot ${classeExtra}" ${acaoClick}>${horaString}</div>`);
+            }
+            
+            // Mensagem caso o dia esteja totalmente cheio
+            if ($('.time-slot:not(.occupied)').length === 0) {
+                grid.append('<div class="col-12 text-center text-muted mt-3">Não há horários disponíveis com duração suficiente para este serviço nesta data.</div>');
+            }
         }
 
         function selecionarHora(elemento, hora) {
@@ -171,19 +229,13 @@
         }
 
         function irParaProximo() {
-            if(localStorage.getItem('servico_nome') === 'Manicure') {
-                window.location.href = 'personalizar.html';
-            } else {
-                window.location.href = 'confirmacao.html';
-            }
+            if(localStorage.getItem('servico_nome') === 'Manicure') window.location.href = 'personalizar.html';
+            else window.location.href = 'confirmacao.html';
         }
 
         function irParaPersonalizacao() {
-            if(localStorage.getItem('reserva_data') && localStorage.getItem('reserva_hora')) {
-                irParaProximo();
-            } else {
-                alert("Por favor, selecione uma data e um horário primeiro.");
-            }
+            if(localStorage.getItem('reserva_data') && localStorage.getItem('reserva_hora')) irParaProximo();
+            else alert("Por favor, selecione uma data e um horário primeiro.");
         }
     </script>
 </body>
