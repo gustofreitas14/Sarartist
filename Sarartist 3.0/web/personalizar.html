@@ -4,8 +4,7 @@
     <script>
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
-                document.documentElement.style.backgroundColor = '#121212';
-                document.documentElement.style.colorScheme = 'dark';
+                document.documentElement.classList.add('dark-mode');
             }
         })();
     </script>
@@ -17,33 +16,58 @@
     <script src="js/jquery-2.2.3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* Padrões */
         .patterns-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
-        .pattern-item { 
-            border: 2px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer; 
+        .pattern-item {
+            border: 2px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer;
             text-align: center; flex: 1; min-width: 100px; transition: 0.3s;
             background: #fff; color: #333;
         }
         .pattern-item img { width: 100%; height: 60px; object-fit: contain; margin-bottom: 5px; border-radius: 4px; }
         .pattern-item.active { border-color: #f1703a; background: #fff5f0; color: #f1703a; }
-        
-        /* Estilo para as camadas da mão */
+        body.dark-mode .pattern-item { background: #2a2a2a; border-color: #444; color: #e0e0e0; }
+        body.dark-mode .pattern-item.active { border-color: #f1703a; background: #3a2520; color: #f1703a; }
+
+        /* Preview mão */
         .hand-wrapper { position: relative; width: 100%; }
         .hand-image { position: relative; z-index: 3; width: 100%; display: block; }
-        .nail-color-layer { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 1; transition: background 0.3s; 
+        .nail-color-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; transition: background 0.3s;
         }
-        #nailPatternLayer { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 2; pointer-events: none; object-fit: contain;
+        #nailPatternLayer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2; pointer-events: none; object-fit: contain; display: none;
         }
 
-        .upload-box { 
-            border: 2px dashed #f1703a; padding: 20px; border-radius: 8px; 
+        /* Upload */
+        .upload-box {
+            border: 2px dashed #f1703a; padding: 20px; border-radius: 8px;
             margin-top: 15px; text-align: center; background: #fafafa;
         }
+        body.dark-mode .upload-box { background: #2a2a2a; }
         .hidden-input { display: none; }
         .preview-upload { max-width: 100px; margin-top: 10px; border-radius: 5px; display: none; }
+
+        /* Dark mode chat */
+        body.dark-mode #ai-chat-window { background: #1e1e1e; border-color: #333; }
+        body.dark-mode .chat-body { background: #121212; }
+        body.dark-mode .msg-ai { background: #2a2a2a; color: #e0e0e0; }
+        body.dark-mode .chat-footer { background: #1e1e1e; border-color: #333; }
+        body.dark-mode .chat-footer input { background: #2a2a2a; color: #e0e0e0; border-color: #444; }
+
+        /* Indicador de digitação */
+        .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
+        .typing-indicator span {
+            width: 8px; height: 8px; border-radius: 50%; background: #ccc;
+            animation: bounce 1.2s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-8px); }
+        }
     </style>
 </head>
 <body class="pg-personalizar">
@@ -77,27 +101,31 @@
                             <img id="nailPatternLayer" src="">
                             <div id="nailColor" class="nail-color-layer"></div>
                         </div>
+                        <p class="text-center text-muted mt-2" id="lblSelecao">Nenhuma cor selecionada</p>
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="booking-card-white">
                         <h4 class="mb-3"><i class="fa fa-paint-brush"></i> 1. Escolha a Cor</h4>
-                        <div id="colorGrid"></div>
+                        <div id="colorGrid">
+                            <div class="text-center p-2"><i class="fa fa-spinner fa-spin"></i></div>
+                        </div>
 
                         <hr>
 
                         <h4 class="mb-3"><i class="fa fa-star"></i> 2. Escolha o Desenho</h4>
                         <div id="patternsGrid" class="patterns-grid">
-                            <div class="text-center w-100 p-3"><i class="fa fa-spinner fa-spin"></i> A carregar desenhos...</div>
+                            <div class="text-center w-100 p-2"><i class="fa fa-spinner fa-spin"></i></div>
                         </div>
 
                         <div id="areaUpload" class="upload-box" style="display:none;">
-                            <p>Envie-nos a sua imagem de inspiração:</p>
-                            <label class="btn-confirmar" style="background:#333; cursor:pointer;">
+                            <p>Envie a sua imagem de inspiração:</p>
+                            <label class="btn-confirmar" style="background:#333; cursor:pointer; display:inline-block;">
                                 <i class="fa fa-upload"></i> Selecionar Foto
                                 <input type="file" id="inputFoto" class="hidden-input" accept="image/*" onchange="previewImagem(this)">
                             </label>
+                            <br>
                             <img id="imgPreview" class="preview-upload">
                         </div>
 
@@ -110,6 +138,31 @@
         </div>
     </div>
 
+    <!-- Botão flutuante da IA -->
+    <div id="ai-launcher" onclick="toggleChat()" title="Sara AI — Pede uma sugestão!">
+        <i class="fa fa-magic"></i>
+    </div>
+
+    <!-- Janela de Chat -->
+    <div id="ai-chat-window">
+        <div class="chat-header">
+            <span>✨ Sara AI Stylist</span>
+            <button class="chat-close-btn" onclick="toggleChat()">&times;</button>
+        </div>
+        <div id="chat-messages" class="chat-body">
+            <div class="msg msg-ai">
+                Olá! Sou a Sara AI 💅<br><br>
+                Diz-me para que ocasião é a manicure e eu sugiro a cor e o desenho perfeitos do nosso catálogo!
+            </div>
+        </div>
+        <div class="chat-footer">
+            <input type="text" id="chat-input" placeholder="Ex: Vou a um casamento..." maxlength="200">
+            <button class="chat-send-btn" onclick="enviarMensagem()" id="btnEnviar">
+                <i class="fa fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
     <div id="footer-placeholder"></div>
 
     <script>
@@ -117,58 +170,85 @@
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        let listaCores = [];
+        let listaPadroes = [];
+
         $(function () {
             $("#header-placeholder").load("header.html");
             $("#footer-placeholder").load("footer.html");
-            
+
+            $(window).scroll(function () {
+                if ($(this).scrollTop() > 50) { $('.w3header').addClass('scrolled'); }
+                else { $('.w3header').removeClass('scrolled'); }
+            });
+
             carregarCoresBD();
             carregarPadroesBD();
-            
+
             localStorage.setItem('escolha_padrao', 'Simples');
             localStorage.removeItem('escolha_imagem_url');
+
+            // Enter para enviar mensagem
+            $('#chat-input').keypress(function(e) {
+                if (e.which === 13) enviarMensagem();
+            });
         });
 
+        // ─── CARREGAR DADOS DA BD ────────────────────────────────────────
+
         async function carregarCoresBD() {
-            const { data: cores, error } = await _supabase.from('catalogo_unhas').select('*').eq('disponivel', true);
-            if (error) return $('#colorGrid').html('<p>Erro ao carregar cores.</p>');
+            const { data: cores, error } = await _supabase
+                .from('catalogo_unhas').select('*').eq('disponivel', true);
+            if (error) return $('#colorGrid').html('<p class="text-danger">Erro ao carregar cores.</p>');
+            listaCores = cores;
             const grid = $('#colorGrid').empty();
             cores.forEach(c => {
-                grid.append(`<div class="color-dot" style="background: ${c.hex_code};" title="${c.nome_cor}" onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')"></div>`);
+                grid.append(`<div class="color-dot" 
+                    data-nome="${c.nome_cor}" 
+                    data-hex="${c.hex_code}"
+                    style="background: ${c.hex_code};" 
+                    title="${c.nome_cor}" 
+                    onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')"></div>`);
             });
         }
 
         async function carregarPadroesBD() {
-            const { data: padroes, error } = await _supabase.from('catalogo_padroes').select('*').eq('disponivel', true);
-            if (error) return $('#patternsGrid').html('<p>Erro ao carregar desenhos.</p>');
+            const { data: padroes, error } = await _supabase
+                .from('catalogo_padroes').select('*').eq('disponivel', true);
 
             const grid = $('#patternsGrid').empty();
-            
-            // Opção Padrão: Simples
-            grid.append(`
-                <div class="pattern-item active" onclick="selecionarPadrao(this, 'Simples', '')">
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-ban fa-2x"></i></div>
-                    <div>Simples</div>
-                </div>
-            `);
 
-            // Padrões da Base de Dados
-            padroes.forEach(p => {
-                grid.append(`
-                    <div class="pattern-item" onclick="selecionarPadrao(this, '${p.nome}', '${p.imagem_url}')">
-                        <img src="${p.imagem_url}">
-                        <div>${p.nome}</div>
+            // Opção Simples (sempre primeiro)
+            grid.append(`
+                <div class="pattern-item active" data-nome="Simples" onclick="selecionarPadrao(this, 'Simples', '')">
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center;">
+                        <i class="fa fa-ban fa-2x text-muted"></i>
                     </div>
-                `);
-            });
+                    <div>Simples</div>
+                </div>`);
 
-            // Opção Padrão: Personalizado
+            if (!error && padroes && padroes.length > 0) {
+                listaPadroes = padroes;
+                padroes.forEach(p => {
+                    grid.append(`
+                        <div class="pattern-item" data-nome="${p.nome}" onclick="selecionarPadrao(this, '${p.nome}', '${p.imagem_url}')">
+                            <img src="${p.imagem_url}" onerror="this.style.display='none'">
+                            <div>${p.nome}</div>
+                        </div>`);
+                });
+            }
+
+            // Opção Personalizado (sempre último)
             grid.append(`
-                <div class="pattern-item" onclick="selecionarPadrao(this, 'Personalizado', '')">
-                    <div style="height:60px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-camera fa-2x"></i></div>
+                <div class="pattern-item" data-nome="Personalizado" onclick="selecionarPadrao(this, 'Personalizado', '')">
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center;">
+                        <i class="fa fa-camera fa-2x text-muted"></i>
+                    </div>
                     <div>O meu desenho</div>
-                </div>
-            `);
+                </div>`);
         }
+
+        // ─── INTERAÇÕES ──────────────────────────────────────────────────
 
         function aplicarCor(elemento, hex, nome) {
             $('#nailColor').css('background-color', hex);
@@ -176,6 +256,7 @@
             $(elemento).addClass('active');
             localStorage.setItem('escolha_cor_hex', hex);
             localStorage.setItem('escolha_cor_nome', nome);
+            atualizarLabel();
         }
 
         function selecionarPadrao(elemento, padrao, imgUrl) {
@@ -183,19 +264,24 @@
             $(elemento).addClass('active');
             localStorage.setItem('escolha_padrao', padrao);
 
-            const patternLayer = $('#nailPatternLayer');
-
             if (padrao === 'Personalizado') {
                 $('#areaUpload').fadeIn();
-                patternLayer.hide().attr('src', '');
+                $('#nailPatternLayer').hide().attr('src', '');
             } else {
                 $('#areaUpload').fadeOut();
-                if (imgUrl && padrao !== 'Simples') {
-                    patternLayer.attr('src', imgUrl).show();
+                if (imgUrl) {
+                    $('#nailPatternLayer').attr('src', imgUrl).show();
                 } else {
-                    patternLayer.hide().attr('src', '');
+                    $('#nailPatternLayer').hide().attr('src', '');
                 }
             }
+            atualizarLabel();
+        }
+
+        function atualizarLabel() {
+            const cor = localStorage.getItem('escolha_cor_nome') || 'Nenhuma';
+            const padrao = localStorage.getItem('escolha_padrao') || 'Simples';
+            $('#lblSelecao').text(`${cor} — ${padrao}`);
         }
 
         function previewImagem(input) {
@@ -207,22 +293,20 @@
         }
 
         async function validarEContinuar() {
-            const padrao = localStorage.getItem('escolha_padrao');
-            const file = $('#inputFoto')[0].files[0];
-
             if (!localStorage.getItem('escolha_cor_hex')) {
                 return alert("Por favor, selecione uma cor primeiro.");
             }
-
+            const padrao = localStorage.getItem('escolha_padrao');
             if (padrao === 'Personalizado') {
-                if (!file) return alert("Por favor, envie uma imagem para o seu desenho personalizado.");
-                $('#btnAvancar').prop('disabled', true).text('A carregar imagem...');
-                const uploadURL = await subirParaStorage(file);
-                if (uploadURL) {
-                    localStorage.setItem('escolha_imagem_url', uploadURL);
+                const file = $('#inputFoto')[0].files[0];
+                if (!file) return alert("Por favor, envie uma imagem de inspiração.");
+                $('#btnAvancar').prop('disabled', true).text('A carregar...');
+                const url = await subirParaStorage(file);
+                if (url) {
+                    localStorage.setItem('escolha_imagem_url', url);
                     window.location.href = 'confirmacao.html';
                 } else {
-                    $('#btnAvancar').prop('disabled', false).text('Continuar');
+                    $('#btnAvancar').prop('disabled', false).text('Continuar para Confirmação');
                 }
             } else {
                 window.location.href = 'confirmacao.html';
@@ -230,13 +314,143 @@
         }
 
         async function subirParaStorage(file) {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}_inspiração.${fileExt}`;
-            const filePath = `clientes/${fileName}`;
-            const { data, error } = await _supabase.storage.from('unhas-personalizadas').upload(filePath, file);
+            const ext = file.name.split('.').pop();
+            const path = `clientes/${Date.now()}.${ext}`;
+            const { error } = await _supabase.storage.from('unhas-personalizadas').upload(path, file);
             if (error) { alert("Erro no upload: " + error.message); return null; }
-            const { data: urlData } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(filePath);
-            return urlData.publicUrl;
+            const { data } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(path);
+            return data.publicUrl;
+        }
+
+        // ─── CHATBOT IA ──────────────────────────────────────────────────
+
+        function toggleChat() {
+            const win = $('#ai-chat-window');
+            if (win.is(':visible')) {
+                win.fadeOut(200);
+            } else {
+                win.fadeIn(200).css('display', 'flex');
+                $('#chat-input').focus();
+            }
+        }
+
+        function addMessage(tipo, texto, id = '') {
+            const div = $(`<div class="msg msg-${tipo}" ${id ? `id="${id}"` : ''}>${texto}</div>`);
+            $('#chat-messages').append(div);
+            $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+        }
+
+        function addTyping() {
+            const id = 'typing-' + Date.now();
+            const div = $(`<div class="msg msg-ai typing-indicator" id="${id}">
+                <span></span><span></span><span></span>
+            </div>`);
+            $('#chat-messages').append(div);
+            $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+            return id;
+        }
+
+        async function enviarMensagem() {
+            const input = $('#chat-input');
+            const msg = input.val().trim();
+            if (!msg) return;
+
+            // Verificar se tem cores carregadas
+            if (listaCores.length === 0) {
+                addMessage('ai', 'Ainda estou a carregar o catálogo. Aguarda um momento! ⏳');
+                return;
+            }
+
+            addMessage('user', msg);
+            input.val('');
+            $('#btnEnviar').prop('disabled', true);
+
+            const typingId = addTyping();
+
+            // Preparar contexto do catálogo para a IA
+            const coresDisponiveis = listaCores.map(c => `${c.nome_cor} (${c.hex_code})`).join(', ');
+            const padroesDisponiveis = ['Simples', ...listaPadroes.map(p => p.nome), 'Personalizado'].join(', ');
+
+            const prompt = `És a Sara AI, assistente de estilo da Sarartist, um salão de beleza português especializado em manicure.
+
+Catálogo de cores disponíveis: ${coresDisponiveis}
+Desenhos disponíveis: ${padroesDisponiveis}
+
+A cliente diz: "${msg}"
+
+Responde em português de Portugal, de forma simpática e breve (máximo 3 frases). 
+Sugere EXATAMENTE 1 cor e 1 desenho do catálogo acima.
+No final da tua resposta, inclui OBRIGATORIAMENTE esta linha no formato exato:
+[APLICAR: NomeDaCor | NomeDoDesenho]
+
+Exemplo: [APLICAR: Vermelho Intenso | Simples]`;
+
+            try {
+                // Chamar a Edge Function do Supabase (a chave API fica segura no servidor)
+                const { data, error } = await _supabase.functions.invoke('sarartist-ai', {
+                    body: { prompt }
+                });
+
+                $(`#${typingId}`).remove();
+
+                if (error) throw new Error(error.message);
+
+                const resposta = data.resposta || data.text || '';
+
+                // Extrair sugestão do formato [APLICAR: Cor | Desenho]
+                const match = resposta.match(/\[APLICAR:\s*(.+?)\s*\|\s*(.+?)\]/i);
+                let textoLimpo = resposta.replace(/\[APLICAR:.*?\]/i, '').trim();
+
+                if (match) {
+                    const corSugerida = match[1].trim();
+                    const padraoSugerido = match[2].trim();
+
+                    addMessage('ai', `${textoLimpo}<br><br>
+                        <button class="ai-action-btn" onclick="aplicarSugestaoIA('${corSugerida}', '${padraoSugerido}')">
+                            ✨ Aplicar: ${corSugerida} + ${padraoSugerido}
+                        </button>`);
+                } else {
+                    addMessage('ai', textoLimpo || resposta);
+                }
+
+            } catch (err) {
+                $(`#${typingId}`).remove();
+                addMessage('ai', '😔 Não consegui ligar à Sara AI de momento. Escolhe manualmente ou tenta novamente!');
+                console.error('Sara AI erro:', err);
+            }
+
+            $('#btnEnviar').prop('disabled', false);
+            input.focus();
+        }
+
+        function aplicarSugestaoIA(corNome, padraoNome) {
+            // Encontrar a cor pelo nome (aproximado)
+            const corEl = $(`.color-dot[data-nome]`).filter(function() {
+                return $(this).data('nome').toLowerCase().includes(corNome.toLowerCase()) ||
+                       corNome.toLowerCase().includes($(this).data('nome').toLowerCase());
+            }).first();
+
+            if (corEl.length) {
+                corEl[0].click();
+                addMessage('ai', `✅ Cor aplicada: ${corEl.data('nome')}`);
+            } else {
+                addMessage('ai', `⚠️ Cor "${corNome}" não encontrada no catálogo. Escolhe manualmente!`);
+            }
+
+            // Encontrar o padrão pelo nome
+            const padraoEl = $(`.pattern-item[data-nome]`).filter(function() {
+                return $(this).data('nome').toLowerCase().includes(padraoNome.toLowerCase()) ||
+                       padraoNome.toLowerCase().includes($(this).data('nome').toLowerCase());
+            }).first();
+
+            if (padraoEl.length) {
+                padraoEl[0].click();
+                addMessage('ai', `✅ Desenho aplicado: ${padraoEl.data('nome')}`);
+            } else {
+                addMessage('ai', `⚠️ Desenho "${padraoNome}" não encontrado. Escolhe manualmente!`);
+            }
+
+            setTimeout(() => toggleChat(), 1500);
         }
     </script>
 </body>
