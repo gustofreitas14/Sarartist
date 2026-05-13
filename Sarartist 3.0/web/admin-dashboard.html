@@ -1,8 +1,49 @@
 <!DOCTYPE html>
-<html lang="pt">
-<head>
+<html lang="pt" style="display: none;"> <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sarartist | Admin Hub</title>
+    
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
-        // 1. Aplicar dark mode imediato
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- SEGURANÇA MÁXIMA: BLOQUEIO ANTES DO RENDER ---
+        async function validarAcessoAdmin() {
+            try {
+                // 1. Verificar sessão ativa
+                const { data: { session } } = await _supabase.auth.getSession();
+                
+                if (!session) {
+                    window.location.replace('login.html');
+                    return;
+                }
+
+                // 2. Verificar se o tipo de utilizador é admin
+                const { data, error } = await _supabase
+                    .from('perfis')
+                    .select('tipo_utilizador')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (error || !data || data.tipo_utilizador !== 'admin') {
+                    // Se não for admin, redireciona imediatamente e limpa histórico
+                    window.location.replace('index.html');
+                } else {
+                    // SUCESSO: É admin, mostramos a página
+                    document.documentElement.style.display = 'block';
+                }
+            } catch (err) {
+                window.location.replace('index.html');
+            }
+        }
+        validarAcessoAdmin();
+
+        // Dark Mode Instantâneo
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
                 document.documentElement.style.backgroundColor = '#121212';
@@ -10,55 +51,41 @@
             }
         })();
     </script>
-    <title>Sarartist | Admin Hub</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="css/bootstrap.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <link href="css/font-awesome.css" rel="stylesheet">
-    <script src="js/jquery-2.2.3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        /* Esconde a página por defeito para segurança */
-        body { display: none; }
-        .admin-page-active { display: block !important; }
-
         .admin-card { transition: all 0.3s ease; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 15px; }
         .admin-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;
         }
+        .btn-logout { border-radius: 50px; padding: 8px 20px; font-weight: 600; }
     </style>
 </head>
 <body class="admin-page">
-    <main class="admin-main" style="margin-left: 0; padding: 40px;">
-        <header class="admin-header d-flex justify-content-between align-items-center">
-            <h2>Olá, Sara! O que vamos gerir hoje?</h2>
+    <main class="admin-main" style="padding: 40px;">
+        <header class="admin-header d-flex justify-content-between align-items-center mb-5">
+            <h2>Olá, Sara! Gestão Administrativa</h2>
             <div class="header-buttons">
                 <a href="index.html" class="btn btn-outline-primary me-2">
-                    <i class="fa fa-eye"></i> Visualizar Site
+                    <i class="fa fa-eye"></i> Ver Site
                 </a>
-                <button class="btn btn-outline-danger" onclick="handleLogout()">
+                <button class="btn btn-danger btn-logout" onclick="handleLogout()">
                     <i class="fa fa-sign-out"></i> Sair
                 </button>
             </div>
         </header>
 
-        <div class="row mt-5">
+        <div class="row">
             <div class="col-md-3 mb-4">
                 <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-agenda.html'" style="cursor:pointer">
                     <i class="fa fa-calendar fa-4x mb-3" style="color: #E1306C;"></i>
                     <h4>Agenda</h4>
-                    <p class="text-muted">Ver e gerir marcações</p>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-4">
-                <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-servicos.html'" style="cursor:pointer">
-                    <i class="fa fa-cut fa-4x mb-3" style="color: #E1306C;"></i>
-                    <h4>Serviços</h4>
-                    <p class="text-muted">Preços e durações</p>
+                    <p class="text-muted">Marcações Ativas</p>
                 </div>
             </div>
 
@@ -66,15 +93,15 @@
                 <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-cores.html'" style="cursor:pointer">
                     <i class="fa fa-paint-brush fa-4x mb-3" style="color: #E1306C;"></i>
                     <h4>Cores</h4>
-                    <p class="text-muted">Paleta de cores disponível</p>
+                    <p class="text-muted">Catálogo de Verniz</p>
                 </div>
             </div>
 
             <div class="col-md-3 mb-4">
                 <div class="admin-card text-center p-5 hvr-grow" onclick="abrirModalPadrao()" style="cursor:pointer; border: 2px dashed #E1306C;">
                     <i class="fa fa-star fa-4x mb-3" style="color: #E1306C;"></i>
-                    <h4>Desenhos PNG</h4>
-                    <p class="text-muted">Adicionar padrões à mão</p>
+                    <h4>Novo Desenho</h4>
+                    <p class="text-muted">Subir PNG para a mão</p>
                 </div>
             </div>
 
@@ -82,7 +109,7 @@
                 <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-produtos.html'" style="cursor:pointer">
                     <i class="fa fa-shopping-bag fa-4x mb-3" style="color: #E1306C;"></i>
                     <h4>Loja</h4>
-                    <p class="text-muted">Gerir stock e produtos</p>
+                    <p class="text-muted">Stock e Vendas</p>
                 </div>
             </div>
         </div>
@@ -90,56 +117,21 @@
 
     <div class="modal-overlay" id="modalNovoPadrao">
         <div class="central-modal" style="background: white; padding: 30px; border-radius: 15px; max-width: 450px; width: 90%; margin: auto;">
-            <h4 class="mb-4">Novo Desenho para o Modelo</h4>
-            <div class="auth-form text-start">
-                <div class="form-group mb-3">
-                    <label>Nome do Padrão</label>
-                    <input type="text" id="nomePadrao" class="form-control" placeholder="Ex: Flores Brancas">
-                </div>
-                <div class="form-group mb-3">
-                    <label>Ficheiro PNG (Transparente)</label>
-                    <input type="file" id="filePadrao" class="form-control" accept="image/png">
-                </div>
-                <button id="btnSalvarPadrao" class="btn btn-primary w-100 mt-3" onclick="salvarNovoPadrao()">
-                    <i class="fa fa-save"></i> Guardar no Catálogo
-                </button>
-                <button class="btn btn-link w-100 mt-2 text-muted" onclick="$('#modalNovoPadrao').hide()">Cancelar</button>
+            <h4 class="mb-4">Adicionar PNG ao Catálogo</h4>
+            <div class="form-group mb-3 text-start">
+                <label>Nome do Desenho</label>
+                <input type="text" id="nomePadrao" class="form-control" placeholder="Ex: Flores Brancas">
             </div>
+            <div class="form-group mb-3 text-start">
+                <label>Ficheiro PNG Transparente</label>
+                <input type="file" id="filePadrao" class="form-control" accept="image/png">
+            </div>
+            <button id="btnSalvarPadrao" class="btn btn-primary w-100 mt-3" onclick="salvarNovoPadrao()">Guardar Desenho</button>
+            <button class="btn btn-link w-100 mt-2 text-muted" onclick="$('#modalNovoPadrao').hide()">Cancelar</button>
         </div>
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // --- TRANCA DE SEGURANÇA ADMIN ---
-        async function protegerPagina() {
-            const { data: { user } } = await _supabase.auth.getUser();
-
-            if (!user) {
-                window.location.href = 'login.html';
-                return;
-            }
-
-            const { data, error } = await _supabase
-                .from('perfis')
-                .select('tipo_utilizador')
-                .eq('id', user.id)
-                .single();
-
-            if (error || !data || data.tipo_utilizador !== 'admin') {
-                alert("Acesso Negado: Esta área é reservada para a Sara.");
-                window.location.href = 'index.html';
-            } else {
-                // Se for admin, mostra a página
-                document.body.classList.add('admin-page-active');
-            }
-        }
-
-        // Executar proteção imediatamente
-        protegerPagina();
-
         function abrirModalPadrao() {
             $('#modalNovoPadrao').css('display', 'flex');
         }
@@ -148,7 +140,7 @@
             const nome = $('#nomePadrao').val();
             const file = $('#filePadrao')[0].files[0];
 
-            if (!nome || !file) return alert("Por favor, preencha o nome e selecione um PNG.");
+            if (!nome || !file) return alert("Preencha todos os campos.");
 
             $('#btnSalvarPadrao').prop('disabled', true).text('A carregar...');
 
@@ -157,6 +149,7 @@
                 const fileName = `padrao_${Date.now()}.${fileExt}`;
                 const filePath = `catalogo/${fileName}`;
 
+                // Upload para Storage
                 const { error: uploadError } = await _supabase.storage
                     .from('unhas-personalizadas')
                     .upload(filePath, file);
@@ -165,25 +158,25 @@
 
                 const { data: urlData } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(filePath);
                 
+                // Salvar na Tabela
                 const { error: dbError } = await _supabase.from('catalogo_padroes').insert([
                     { nome: nome, imagem_url: urlData.publicUrl, disponivel: true }
                 ]);
 
                 if (dbError) throw dbError;
 
-                alert("Sucesso! O padrão já aparece na personalização.");
+                alert("Desenho adicionado com sucesso!");
                 location.reload();
-
             } catch (err) {
                 alert("Erro: " + err.message);
-                $('#btnSalvarPadrao').prop('disabled', false).text('Guardar no Catálogo');
+                $('#btnSalvarPadrao').prop('disabled', false).text('Guardar Desenho');
             }
         }
 
         async function handleLogout() {
-            if(confirm("Deseja mesmo sair da área administrativa?")) {
+            if(confirm("Deseja mesmo sair?")) {
                 await _supabase.auth.signOut();
-                window.location.href = 'login.html';
+                window.location.replace('login.html');
             }
         }
     </script>
