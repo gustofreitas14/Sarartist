@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 
 <head>
     <script>
@@ -34,7 +34,7 @@
 </head>
 
 <body>
-    <div class="video jarallax" data-vide-bg="video/spa">
+    <div class="video jarallax" data-vide-bg="/video/spa" data-vide-options="loop: true, muted: true, autoplay: true">
         <div id="header-placeholder"></div>
 
         <div class="banner-w3ltext page-header__content w3layouts">
@@ -141,6 +141,11 @@
                     $('.w3header').removeClass('scrolled');
                 }
             });
+
+            // 5. Garantir playsinline para vídeos no iOS (Safari)
+            setTimeout(function() {
+                $('.video video').attr('playsinline', '');
+            }, 500);
         });
     </script>
 </body>
