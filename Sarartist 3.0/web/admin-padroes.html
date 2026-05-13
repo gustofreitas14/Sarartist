@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt" style="display: none;"> <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sarartist | Gestão de Padrões</title>
+    
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- SEGURANÇA MÁXIMA ---
+        async function verificarAcessoAdmin() {
+            try {
+                const { data: { user }, error: authError } = await _supabase.auth.getUser();
+                if (authError || !user) { window.location.replace('login.html'); return; }
+
+                const { data: perfil } = await _supabase.from('perfis').select('tipo_utilizador').eq('id', user.id).single();
+
+                if (!perfil || perfil.tipo_utilizador !== 'admin') {
+                    window.location.replace('index.html');
+                } else {
+                    document.documentElement.style.display = 'block';
+                    carregarPadroes();
+                }
+            } catch (err) { window.location.replace('index.html'); }
+        }
+
+        // Dark Mode imediato
+        (function() {
+            if (localStorage.getItem('sarartist_darkmode') === 'true') {
+                document.documentElement.style.backgroundColor = '#121212';
+                document.documentElement.style.colorScheme = 'dark';
+            }
+        })();
+
+        verificarAcessoAdmin();
+    </script>
+</head>
+<body class="admin-page">
+
+    <main class="admin-main" style="margin-left: 0; padding: 40px;">
+        <header class="admin-header d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <a href="admin-dashboard.html" class="btn btn-sm btn-outline-secondary mb-2">
+                    <i class="fa fa-arrow-left"></i> Voltar ao Hub
+                </a>
+                <div class="d-flex align-items-center">
+                    <span style="font-size: 30px; margin-right: 15px;">🖼️</span>
+                    <h2 class="mb-0">Catálogo de Padrões</h2>
+                </div>
+            </div>
+            <button class="btn-admin-add" onclick="abrirModal()">+ Adicionar Desenho</button>
+        </header>
+
+        <section class="admin-tab-content active">
+            <div class="row" id="grid-padroes">
+                <div class="col-12 text-center p-5">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i><br>A carregar catálogo...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="central-modal">
+            <button class="modal-close" onclick="fecharModais()">&times;</button>
+            <h4 class="mb-4">Novo Desenho / Padrão</h4>
+            
+            <div class="form-group mb-3 text-start">
+                <label>Nome do Padrão</label>
+                <input type="text" id="p-nome" class="form-control" placeholder="Ex: Francesa Clássica">
+            </div>
+
+            <div class="form-group mb-4 text-start">
+                <label>Imagem (PNG Transparente)</label>
+                <input type="file" id="p-imagem-file" class="form-control" accept="image/png">
+                <small class="text-muted d-block mt-1">Deverá ser um ficheiro PNG com fundo transparente.</small>
+            </div>
+
+            <button class="btn-confirmar w-100" id="btn-gravar" onclick="gravarPadrao()">Registar Desenho</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#modalOverlay').on('click', function(e) { if (e.target === this) fecharModais(); });
+        });
+
+        async function carregarPadroes() {
+            const { data, error } = await _supabase.from('catalogo_padroes').select('*').order('nome');
+            if (error) return console.error(error);
+
+            let html = '';
+            data.forEach(p => {
+                html += `
+                <div class="col-md-3 mb-4">
+                    <div class="admin-card p-3 text-center shadow-sm" style="position: relative; border-top: 5px solid #f1703a; border-radius: 15px;">
+                        <button class="btn btn-link text-danger" style="position: absolute; top: 5px; right: 5px;" onclick="eliminarPadrao('${p.id}', '${p.imagem_url}')">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                        <div style="width:100%; height:120px; display:flex; align-items:center; justify-content:center; background:#f9f9f9; border-radius:10px; margin-bottom:10px;">
+                            <img src="${p.imagem_url}" style="max-width:80%; max-height:80%; object-fit:contain;">
+                        </div>
+                        <h5 class="mb-1" style="font-size: 1rem;">${p.nome}</h5>
+                        <p class="mb-0"><span class="badge bg-dark text-white" style="padding: 5px 10px;">PNG</span></p>
+                    </div>
+                </div>`;
+            });
+            $('#grid-padroes').html(html || '<p class="text-center w-100">O catálogo de desenhos está vazio.</p>');
+        }
+
+        function abrirModal() { $('#modalOverlay').addClass('active'); }
+        function fecharModais() { $('#modalOverlay').removeClass('active'); }
+
+        async function gravarPadrao() {
+            const btn = $('#btn-gravar');
+            const nome = $('#p-nome').val();
+            const imagemFile = $('#p-imagem-file')[0].files[0];
+
+            if(!nome || !imagemFile) return alert("Por favor, preencha o nome e selecione a imagem.");
+
+            btn.prop('disabled', true).text('A carregar...');
+
+            try {
+                const fileExt = imagemFile.name.split('.').pop();
+                const fileName = `padrao_${Date.now()}.${fileExt}`;
+                const filePath = `catalogo/${fileName}`;
+
+                // 1. Upload para o Storage
+                const { error: uploadError } = await _supabase.storage
+                    .from('unhas-personalizadas')
+                    .upload(filePath, imagemFile);
+
+                if (uploadError) throw uploadError;
+
+                const { data: publicUrlData } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(filePath);
+                
+                // 2. Gravar na Tabela
+                const { error: insertError } = await _supabase.from('catalogo_padroes').insert([{ 
+                    nome: nome, 
+                    imagem_url: publicUrlData.publicUrl 
+                }]);
+
+                if (insertError) throw insertError;
+
+                fecharModais();
+                carregarPadroes();
+                $('#p-nome, #p-imagem-file').val('');
+                alert("Desenho adicionado com sucesso!");
+
+            } catch (err) {
+                alert("Erro: " + err.message);
+            } finally {
+                btn.prop('disabled', false).text('Registar Desenho');
+            }
+        }
+
+        async function eliminarPadrao(id, url) {
+            if(!confirm("Deseja eliminar este desenho?")) return;
+            const { error } = await _supabase.from('catalogo_padroes').delete().eq('id', id);
+            if (!error) {
+                try {
+                    const fileName = url.split('/').pop();
+                    await _supabase.storage.from('unhas-personalizadas').remove([`catalogo/${fileName}`]);
+                } catch(e){}
+                carregarPadroes();
+            }
+        }
+    </script>
+</body>
+</html>

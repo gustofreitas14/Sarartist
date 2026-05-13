@@ -63,10 +63,6 @@
     <style>
         .admin-card { transition: all 0.3s ease; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 15px; background: #fff; color: #333; }
         .admin-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;
-        }
         .btn-logout { border-radius: 50px; padding: 8px 20px; font-weight: 600; }
         
         /* Ajuste para Dark Mode no Card */
@@ -105,10 +101,10 @@
             </div>
 
             <div class="col-md-3 mb-4">
-                <div class="admin-card text-center p-5 hvr-grow" onclick="abrirModalPadrao()" style="cursor:pointer; border: 2px dashed #E1306C;">
+                <div class="admin-card text-center p-5 hvr-grow" onclick="window.location.href='admin-padroes.html'" style="cursor:pointer">
                     <i class="fa fa-star fa-4x mb-3" style="color: #E1306C;"></i>
-                    <h4>Novo Desenho</h4>
-                    <p class="text-muted">Subir PNG para a mão</p>
+                    <h4>Desenhos</h4>
+                    <p class="text-muted">Gerir Catálogo de PNG</p>
                 </div>
             </div>
 
@@ -122,63 +118,7 @@
         </div>
     </main>
 
-    <div class="modal-overlay" id="modalNovoPadrao">
-        <div class="central-modal" style="background: white; padding: 30px; border-radius: 15px; max-width: 450px; width: 90%; margin: auto;">
-            <h4 class="mb-4">Adicionar PNG ao Catálogo</h4>
-            <div class="form-group mb-3 text-start">
-                <label>Nome do Desenho</label>
-                <input type="text" id="nomePadrao" class="form-control" placeholder="Ex: Flores Brancas">
-            </div>
-            <div class="form-group mb-3 text-start">
-                <label>Ficheiro PNG Transparente</label>
-                <input type="file" id="filePadrao" class="form-control" accept="image/png">
-            </div>
-            <button id="btnSalvarPadrao" class="btn btn-primary w-100 mt-3" onclick="salvarNovoPadrao()">Guardar Desenho</button>
-            <button class="btn btn-link w-100 mt-2 text-muted" onclick="$('#modalNovoPadrao').hide()">Cancelar</button>
-        </div>
-    </div>
-
     <script>
-        function abrirModalPadrao() {
-            $('#modalNovoPadrao').css('display', 'flex').hide().fadeIn();
-        }
-
-        async function salvarNovoPadrao() {
-            const nome = $('#nomePadrao').val();
-            const file = $('#filePadrao')[0].files[0];
-
-            if (!nome || !file) return alert("Preencha todos os campos.");
-            if (file.type !== "image/png") return alert("Por favor, selecione apenas ficheiros PNG.");
-
-            $('#btnSalvarPadrao').prop('disabled', true).text('A carregar...');
-
-            try {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `padrao_${Date.now()}.${fileExt}`;
-                const filePath = `catalogo/${fileName}`;
-
-                const { error: uploadError } = await _supabase.storage
-                    .from('unhas-personalizadas')
-                    .upload(filePath, file);
-
-                if (uploadError) throw uploadError;
-
-                const { data: urlData } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(filePath);
-                
-                const { error: dbError } = await _supabase.from('catalogo_padroes').insert([
-                    { nome: nome, imagem_url: urlData.publicUrl, disponivel: true }
-                ]);
-
-                if (dbError) throw dbError;
-
-                alert("Desenho adicionado com sucesso!");
-                location.reload();
-            } catch (err) {
-                alert("Erro: " + err.message);
-                $('#btnSalvarPadrao').prop('disabled', false).text('Guardar Desenho');
-            }
-        }
-
         async function handleLogout() {
             if(confirm("Deseja mesmo sair?")) {
                 await _supabase.auth.signOut();
