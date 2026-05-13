@@ -1,29 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="pt" style="display: none;"> <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sarartist | Gestão de Produtos</title>
+    
+    <script src="js/jquery-2.2.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
-        // Aplicar dark mode antes de qualquer render para evitar flash
+        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- SEGURANÇA MÁXIMA ---
+        async function verificarAcessoAdmin() {
+            try {
+                const { data: { user }, error: authError } = await _supabase.auth.getUser();
+                
+                if (authError || !user) {
+                    window.location.replace('login.html');
+                    return;
+                }
+
+                const { data: perfil, error: dbError } = await _supabase
+                    .from('perfis')
+                    .select('tipo_utilizador')
+                    .eq('id', user.id)
+                    .single();
+
+                if (dbError || !perfil || perfil.tipo_utilizador !== 'admin') {
+                    window.location.replace('index.html');
+                } else {
+                    // SUCESSO: Revela a página e carrega os dados
+                    document.documentElement.style.display = 'block';
+                    carregarProdutos();
+                }
+            } catch (err) {
+                window.location.replace('index.html');
+            }
+        }
+
+        // Dark Mode Instantâneo
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
                 document.documentElement.style.backgroundColor = '#121212';
                 document.documentElement.style.colorScheme = 'dark';
             }
         })();
+
+        verificarAcessoAdmin();
     </script>
-    <title>Sarartist | Gestão de Produtos</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="css/bootstrap.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <link href="css/font-awesome.css" rel="stylesheet">
-    <script src="js/jquery-2.2.3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // Dark mode: aplicar antes do render para evitar flash branco
-        if (localStorage.getItem('sarartist_darkmode') === 'true') {
-            document.documentElement.classList.add('dark-mode');
-            document.body && document.body.classList.add('dark-mode');
+    
+    <style>
+        .admin-card { transition: all 0.3s ease; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 15px; background: #fff; color: #333; }
+        .admin-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;
         }
-    </script>
+        .btn-admin-add { background: #f1703a; color: white; border: none; padding: 10px 20px; border-radius: 50px; font-weight: 600; }
+        
+        /* Ajuste para Dark Mode */
+        [data-colorscheme="dark"] .admin-card { background: #1e1e1e; color: #fff; border-top: 5px solid #f1703a !important; }
+    </style>
 </head>
 <body class="admin-page">
 
@@ -51,62 +94,47 @@
     </main>
 
     <div class="modal-overlay" id="modalOverlay">
-        <div class="central-modal">
-            <button class="modal-close" onclick="fecharModais()">&times;</button>
+        <div class="central-modal" style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; margin: auto; position: relative;">
+            <button class="btn btn-link text-dark" style="position: absolute; top: 10px; right: 10px; font-size: 24px; text-decoration: none;" onclick="fecharModais()">&times;</button>
             
             <h4 class="mb-4">Novo Produto</h4>
             
-            <div class="form-group mb-3">
+            <div class="form-group mb-3 text-start">
                 <label>Nome do Produto</label>
                 <input type="text" id="p-nome" class="form-control" placeholder="Ex: Creme Hidratante">
             </div>
 
             <div class="row">
-                <div class="col-md-6 form-group mb-3">
+                <div class="col-md-6 form-group mb-3 text-start">
                     <label>Preço (€)</label>
                     <input type="number" id="p-preco" class="form-control" step="0.01" placeholder="0.00">
                 </div>
-                <div class="col-md-6 form-group mb-3">
+                <div class="col-md-6 form-group mb-3 text-start">
                     <label>Stock</label>
                     <input type="number" id="p-stock" class="form-control" placeholder="0">
                 </div>
             </div>
 
-            <div class="form-group mb-3">
+            <div class="form-group mb-3 text-start">
                 <label>Código de Barras / Ref.</label>
                 <input type="text" id="p-barcode" class="form-control" placeholder="Ex: 560123456789">
             </div>
 
-            <div class="form-group mb-4">
-                <label>Imagem do Produto (do PC)</label>
+            <div class="form-group mb-4 text-start">
+                <label>Imagem do Produto</label>
                 <input type="file" id="p-imagem-file" class="form-control" accept="image/*">
-                <small class="text-muted d-block mt-1">Selecione uma imagem (JPG, PNG, etc.) do seu computador.</small>
             </div>
 
-            <button class="btn-confirmar w-100" id="btn-gravar" onclick="gravarProduto()">Registar na Loja</button>
+            <button class="btn btn-primary w-100" id="btn-gravar" onclick="gravarProduto()">Registar na Loja</button>
         </div>
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
         $(document).ready(function() {
-            verificarAcessoAdmin();
-            carregarProdutos();
-
             $('#modalOverlay').on('click', function(e) {
                 if (e.target === this) fecharModais();
             });
         });
-
-        async function verificarAcessoAdmin() {
-            const { data: { session } } = await _supabase.auth.getSession();
-            if (!session) { window.location.href = 'login.html'; return; }
-            const { data: perfil } = await _supabase.from('perfis').select('tipo_utilizador').eq('id', session.user.id).single();
-            if (!perfil || perfil.tipo_utilizador !== 'admin') { window.location.href = 'index.html'; }
-        }
 
         async function carregarProdutos() {
             const { data, error } = await _supabase.from('produtos').select('*').order('nome');
@@ -118,13 +146,13 @@
                 html += `
                 <div class="col-md-3 mb-4">
                     <div class="admin-card p-3 text-center shadow-sm" style="position: relative; border-top: 5px solid #f1703a; border-radius: 15px;">
-                        <button class="btn btn-link text-danger" style="position: absolute; top: 5px; right: 5px;" onclick="eliminarProduto('${p.id}')">
+                        <button class="btn btn-link text-danger" style="position: absolute; top: 5px; right: 5px;" onclick="eliminarProduto('${p.id}', '${p.imagem_url}')">
                             <i class="fa fa-trash"></i>
                         </button>
                         <div style="background: url('${imgThumb}') center/cover; width:80px; height:80px; border-radius:10px; margin: 10px auto; border: 1px solid #eee;"></div>
                         <h5 class="mb-1" style="font-size: 1rem;">${p.nome}</h5>
-                        <p class="mb-1 text-primary"><strong>${p.preco.toFixed(2)}€</strong></p>
-                        <p class="mb-2"><span class="badge ${p.stock > 0 ? 'badge-success' : 'badge-danger'}" style="padding: 5px 10px;">Stock: ${p.stock}</span></p>
+                        <p class="mb-1 text-primary"><strong>${Number(p.preco).toFixed(2)}€</strong></p>
+                        <p class="mb-2"><span class="badge ${p.stock > 0 ? 'bg-success' : 'bg-danger'}" style="padding: 5px 10px; color: white;">Stock: ${p.stock}</span></p>
                         <small class="text-muted">Ref: ${p.codigo_barras || 'N/A'}</small>
                     </div>
                 </div>`;
@@ -132,78 +160,75 @@
             $('#grid-produtos').html(html || '<p class="text-center w-100">Nenhum produto registado.</p>');
         }
 
-        function abrirModal() { $('#modalOverlay').addClass('active'); }
-        function fecharModais() { $('#modalOverlay').removeClass('active'); }
+        function abrirModal() { $('#modalOverlay').css('display', 'flex').hide().fadeIn(); }
+        function fecharModais() { $('#modalOverlay').fadeOut(); }
 
         async function gravarProduto() {
             const btn = $('#btn-gravar');
-            btn.prop('disabled', true).text('A carregar imagem...');
-
             const nome = $('#p-nome').val();
             const preco = parseFloat($('#p-preco').val());
             const stock = parseInt($('#p-stock').val());
             const barcode = $('#p-barcode').val();
-            const imagemFile = $('#p-imagem-file')[0].files[0]; // Ficheiro selecionado
+            const imagemFile = $('#p-imagem-file')[0].files[0];
 
-            if(!nome || isNaN(preco)) {
-                alert("Por favor, preencha o nome e o preço.");
-                btn.prop('disabled', false).text('Registar na Loja');
-                return;
-            }
+            if(!nome || isNaN(preco)) return alert("Preencha o nome e o preço.");
 
-            let finalImageUrl = null;
+            btn.prop('disabled', true).text('A processar...');
 
-            // 1. Lógica de Upload da Imagem
-            if (imagemFile) {
-                const fileExt = imagemFile.name.split('.').pop();
-                const fileName = `${Date.now()}.${fileExt}`; // Nome único para evitar conflitos
-                const filePath = `produtos/${fileName}`;
+            try {
+                let finalImageUrl = null;
 
-                const { data: uploadData, error: uploadError } = await _supabase.storage
-                    .from('imagens-produtos')
-                    .upload(filePath, imagemFile);
+                if (imagemFile) {
+                    const fileExt = imagemFile.name.split('.').pop();
+                    const fileName = `prod_${Date.now()}.${fileExt}`;
+                    const filePath = `produtos/${fileName}`;
 
-                if (uploadError) {
-                    alert("Erro ao carregar imagem: " + uploadError.message);
-                    btn.prop('disabled', false).text('Registar na Loja');
-                    return;
+                    const { error: uploadError } = await _supabase.storage
+                        .from('imagens-produtos')
+                        .upload(filePath, imagemFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = _supabase.storage.from('imagens-produtos').getPublicUrl(filePath);
+                    finalImageUrl = publicUrlData.publicUrl;
                 }
 
-                // Obter a URL pública da imagem carregada
-                const { data: publicUrlData } = _supabase.storage
-                    .from('imagens-produtos')
-                    .getPublicUrl(filePath);
-                
-                finalImageUrl = publicUrlData.publicUrl;
-            }
-
-            // 2. Gravar o Produto na Tabela
-            const { error: insertError } = await _supabase
-                .from('produtos')
-                .insert([{ 
+                const { error: insertError } = await _supabase.from('produtos').insert([{ 
                     nome: nome, 
                     preco: preco, 
                     stock: stock || 0,
                     codigo_barras: barcode,
-                    imagem_url: finalImageUrl // Link do Storage
+                    imagem_url: finalImageUrl 
                 }]);
 
-            if (insertError) {
-                alert("Erro ao gravar produto: " + insertError.message);
-            } else {
+                if (insertError) throw insertError;
+
                 fecharModais();
                 carregarProdutos();
-                // Limpar campos
                 $('#p-nome, #p-preco, #p-stock, #p-barcode, #p-imagem-file').val('');
+                alert("Produto registado com sucesso!");
+
+            } catch (err) {
+                alert("Erro: " + err.message);
+            } finally {
+                btn.prop('disabled', false).text('Registar na Loja');
             }
-            btn.prop('disabled', false).text('Registar na Loja');
         }
 
-        async function eliminarProduto(id) {
-            if(confirm("Tem a certeza que deseja eliminar este produto?")) {
-                const { error } = await _supabase.from('produtos').delete().eq('id', id);
-                if (error) alert("Erro: " + error.message);
-                else carregarProdutos();
+        async function eliminarProduto(id, imageUrl) {
+            if(!confirm("Deseja eliminar este produto?")) return;
+
+            const { error } = await _supabase.from('produtos').delete().eq('id', id);
+            
+            if (error) {
+                alert("Erro: " + error.message);
+            } else {
+                // Opcional: Limpar imagem do storage se existir
+                if (imageUrl) {
+                    const path = imageUrl.split('/').pop();
+                    await _supabase.storage.from('imagens-produtos').remove([`produtos/${path}`]);
+                }
+                carregarProdutos();
             }
         }
     </script>
