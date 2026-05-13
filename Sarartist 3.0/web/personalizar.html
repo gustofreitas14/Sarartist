@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
+    <meta charset="UTF-8">
     <script>
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
@@ -11,54 +12,13 @@
     </script>
     <title>Sarartist | Personalizar com Sara AI</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="css/bootstrap.css" type="text/css" rel="stylesheet" media="all">
-    <link href="css/style.css" type="text/css" rel="stylesheet" media="all">
-    <link href="css/font-awesome.css" rel="stylesheet">
+    
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
     <script src="js/jquery-2.2.3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <style>
-        /* Simulador e Grids */
-        .patterns-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
-        .pattern-item { 
-            border: 2px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer; 
-            text-align: center; flex: 1; min-width: 100px; transition: 0.3s;
-            background: #fff; color: #333;
-        }
-        .pattern-item img { width: 100%; height: 60px; object-fit: contain; margin-bottom: 5px; border-radius: 4px; }
-        .pattern-item.active { border-color: #f1703a; background: #fff5f0; color: #f1703a; }
-        
-        .hand-wrapper { position: relative; width: 100%; max-width: 400px; margin: auto; }
-        .hand-image { position: relative; z-index: 3; width: 100%; display: block; }
-        .nail-color-layer { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 1; transition: background 0.3s; 
-        }
-        #nailPatternLayer { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 2; pointer-events: none; object-fit: contain;
-        }
-
-        /* Janela de Chat Sara AI */
-        #ai-chat-window {
-            position: fixed; bottom: 90px; right: 20px; width: 350px; height: 500px; 
-            background: white; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); 
-            display: none; flex-direction: column; z-index: 10000; overflow: hidden; border: 1px solid #eee;
-        }
-        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; background: #fdfdfd; }
-        .msg { padding: 10px; border-radius: 10px; max-width: 85%; font-size: 13px; line-height: 1.4; margin-bottom: 10px; position: relative; }
-        .msg-ai { background: #f1f1f1; align-self: flex-start; color: #333; border-bottom-left-radius: 2px; }
-        .msg-user { background: #f1703a; align-self: flex-end; color: white; border-bottom-right-radius: 2px; }
-        
-        .ai-action-btn { 
-            background: #fff; border: 1px solid #f1703a; color: #f1703a; 
-            padding: 6px 12px; border-radius: 20px; font-size: 11px; 
-            margin-top: 8px; cursor: pointer; font-weight: bold; display: block; width: fit-content;
-        }
-        .ai-action-btn:hover { background: #f1703a; color: #fff; }
-
-        .color-dot.active { border: 3px solid #333 !important; transform: scale(1.1); }
-    </style>
 </head>
 <body class="pg-personalizar">
     <div id="header-placeholder"></div>
@@ -87,16 +47,11 @@
 
                 <div class="col-md-6">
                     <div class="booking-card-white">
-                        <h4 class="mb-3">1. Escolha a Cor</h4>
+                        <h4 class="mb-3"><i class="fa fa-paint-brush"></i> 1. Escolha a Cor</h4>
                         <div id="colorGrid" class="d-flex flex-wrap gap-2 mb-4"></div>
 
-                        <h4 class="mb-3">2. Escolha o Desenho</h4>
+                        <h4 class="mb-3"><i class="fa fa-star"></i> 2. Escolha o Desenho</h4>
                         <div id="patternsGrid" class="patterns-grid mb-4"></div>
-
-                        <div id="areaUpload" class="upload-box" style="display:none; border: 2px dashed #f1703a; padding: 15px; border-radius: 10px;">
-                            <p class="small">Inspirado em alguma foto? Envie-nos:</p>
-                            <input type="file" id="inputFoto" class="form-control" accept="image/*" onchange="previewImagem(this)">
-                        </div>
 
                         <button id="btnAvancar" class="btn-confirmar ready w-100 mt-4" onclick="validarEContinuar()">
                             Continuar para Confirmação
@@ -107,30 +62,31 @@
         </div>
     </div>
 
-    <div onclick="toggleChat()" style="position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #f1703a; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 10001;">
-        <i class="fa fa-magic" style="color: white; font-size: 24px;"></i>
+    <div id="ai-launcher" onclick="toggleChat()">
+        <i class="fa fa-magic"></i>
     </div>
 
     <div id="ai-chat-window">
-        <div style="background: #f1703a; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+        <div class="chat-header">
             <span>Sara AI Stylist ✨</span>
-            <button onclick="toggleChat()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
+            <button class="chat-close-btn" onclick="toggleChat()">&times;</button>
         </div>
         <div id="chat-messages" class="chat-body">
-            <div class="msg msg-ai">Olá! Sou a Sara AI. Diz-me: para que ocasião ou evento procuras uma manicure? Posso sugerir algo do nosso catálogo! 😊</div>
+            <div class="msg msg-ai">Olá! Sou a Sara AI. Diz-me: para que ocasião procuras uma manicure hoje? Posso sugerir algo do catálogo! 😊</div>
         </div>
-        <div style="padding: 10px; border-top: 1px solid #eee; display: flex; gap: 5px; background: #fff;">
-            <input type="text" id="chat-input" placeholder="Ex: Vou a um jantar de gala..." style="flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 8px 15px; outline: none; font-size: 13px;">
-            <button onclick="enviarMensagemIA()" style="background: #f1703a; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer;">
+        <div class="chat-footer">
+            <input type="text" id="chat-input" placeholder="Ex: Vou a um jantar de gala...">
+            <button class="chat-send-btn" onclick="enviarMensagemIA()">
                 <i class="fa fa-paper-plane"></i>
             </button>
         </div>
     </div>
 
+    <div id="footer-placeholder"></div>
+
     <script>
         const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
-        const GEMINI_API_KEY = 'AIzaSyD06l_CJd0b2etTjtQ4zCl3-_y_JLNdl0Q'; 
         
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let listaCores = [];
@@ -148,7 +104,7 @@
             listaCores = cores || [];
             const gridC = $('#colorGrid').empty();
             listaCores.forEach(c => {
-                gridC.append(`<div class="color-dot" data-nome="${c.nome_cor}" style="background: ${c.hex_code}; width:35px; height:35px; border-radius:50%; cursor:pointer; border:2px solid #eee;" onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')"></div>`);
+                gridC.append(`<div class="color-dot" data-nome="${c.nome_cor}" style="background: ${c.hex_code};" onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')"></div>`);
             });
 
             const { data: padroes } = await _supabase.from('catalogo_padroes').select('*');
@@ -177,7 +133,11 @@
             if(url) { $('#nailPatternLayer').attr('src', url).show(); } else { $('#nailPatternLayer').hide(); }
         }
 
-        function toggleChat() { $('#ai-chat-window').fadeToggle('fast').css('display', 'flex'); }
+        function toggleChat() { 
+            const win = $('#ai-chat-window');
+            win.is(':visible') ? win.fadeOut('fast') : win.fadeIn('fast').css('display', 'flex');
+            $('#chat-input').focus();
+        }
 
         async function enviarMensagemIA() {
             const input = $('#chat-input');
@@ -190,19 +150,19 @@
             addMessage('ai', '<i class="fa fa-spinner fa-spin"></i> A analisar catálogo...', loadingId);
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: `Tu és a Sara AI, estilista da Sarartist. 
-                        Catálogo Cores: ${listaCores.map(c => c.nome_cor).join(', ')}. 
-                        Catálogo Desenhos: Simples, ${listaPadroes.map(p => p.nome).join(', ')}.
-                        Sugere 1 cor e 1 desenho. Responde de forma curta. 
-                        No fim, usa estritamente este formato: [APPLY: NomeDaCor | NomeDoDesenho]` }] }, { parts: [{ text: msg }] }]
-                    })
+                // INVOCA A TUA EDGE FUNCTION (SEGURANÇA TOTAL)
+                const { data, error } = await _supabase.functions.invoke('swift-processor', {
+                    body: { 
+                        prompt: `Tu és a Sara AI, estilista da Sarartist. 
+                        Cores: ${listaCores.map(c => c.nome_cor).join(', ')}. 
+                        Desenhos: Simples, ${listaPadroes.map(p => p.nome).join(', ')}.
+                        Sugere exatamente 1 cor e 1 desenho. Resposta curta. 
+                        No fim, usa obrigatoriamente este formato: [APPLY: NomeDaCor | NomeDoDesenho]. Pergunta do cliente: ${msg}` 
+                    }
                 });
 
-                const data = await response.json();
+                if (error) throw error;
+
                 let aiTexto = data.candidates[0].content.parts[0].text;
                 $(`#${loadingId}`).remove();
 
@@ -211,21 +171,25 @@
                     const corSug = match[1].trim();
                     const padSug = match[2].trim();
                     aiTexto = aiTexto.replace(/\[APPLY:.*?\]/, '');
-                    addMessage('ai', aiTexto + `<button class="ai-action-btn" onclick="iaAplicar('${corSug}', '${padSug}')">Aplicar Sugestão ✨</button>`);
+                    addMessage('ai', aiTexto + `<br><button class="ai-action-btn" onclick="iaAplicar('${corSug}', '${padSug}')">Aplicar Sugestão ✨</button>`);
                 } else {
                     addMessage('ai', aiTexto);
                 }
-            } catch (err) { $(`#${loadingId}`).html("Erro ao ligar à Sara AI."); }
+            } catch (err) { 
+                $(`#${loadingId}`).html("Erro ao ligar à Sara AI. Verifica se a Edge Function está ativa."); 
+            }
         }
 
-        function addMessage(type, text) {
-            $('#chat-messages').append(`<div class="msg msg-${type}">${text}</div>`);
+        function addMessage(type, text, id = "") {
+            $('#chat-messages').append(`<div id="${id}" class="msg msg-${type}">${text}</div>`);
             $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
         }
 
         function iaAplicar(cor, padrao) {
-            $(`.color-dot[data-nome="${cor}"]`).click();
-            $(`.pattern-item[data-nome="${padrao}"]`).click();
+            const cDot = $(`.color-dot[data-nome="${cor}"]`);
+            const pDot = $(`.pattern-item[data-nome="${padrao}"]`);
+            if(cDot.length) cDot.click();
+            if(pDot.length) pDot.click();
         }
 
         function validarEContinuar() {
