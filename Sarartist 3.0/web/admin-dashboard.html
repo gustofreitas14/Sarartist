@@ -12,38 +12,42 @@
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --- SEGURANÇA MÁXIMA: BLOQUEIO ANTES DO RENDER ---
+        // --- SEGURANÇA MÁXIMA: VERIFICAÇÃO DE CARGO REAL ---
         async function validarAcessoAdmin() {
             try {
-                // 1. Verificar sessão ativa
-                const { data: { session } } = await _supabase.auth.getSession();
+                // 1. Verificar se existe utilizador autenticado
+                const { data: { user }, error: userError } = await _supabase.auth.getUser();
                 
-                if (!session) {
+                if (userError || !user) {
                     window.location.replace('login.html');
                     return;
                 }
 
-                // 2. Verificar se o tipo de utilizador é admin
-                const { data, error } = await _supabase
+                // 2. Consultar a base de dados para confirmar se é ADMIN
+                const { data: perfil, error: perfilError } = await _supabase
                     .from('perfis')
                     .select('tipo_utilizador')
-                    .eq('id', session.user.id)
+                    .eq('id', user.id)
                     .single();
 
-                if (error || !data || data.tipo_utilizador !== 'admin') {
-                    // Se não for admin, redireciona imediatamente e limpa histórico
+                if (perfilError || !perfil || perfil.tipo_utilizador !== 'admin') {
+                    // SE NÃO FOR ADMIN: Logout forçado por segurança e redireciona
+                    await _supabase.auth.signOut();
                     window.location.replace('index.html');
                 } else {
-                    // SUCESSO: É admin, mostramos a página
+                    // SUCESSO: É a Sara. Revelamos o dashboard.
                     document.documentElement.style.display = 'block';
                 }
             } catch (err) {
+                console.error("Erro de segurança:", err);
                 window.location.replace('index.html');
             }
         }
+
+        // Executar validação antes de carregar o resto da página
         validarAcessoAdmin();
 
-        // Dark Mode Instantâneo
+        // Dark Mode
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
                 document.documentElement.style.backgroundColor = '#121212';
@@ -57,13 +61,16 @@
     <link href="css/font-awesome.css" rel="stylesheet">
     
     <style>
-        .admin-card { transition: all 0.3s ease; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 15px; }
+        .admin-card { transition: all 0.3s ease; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 15px; background: #fff; color: #333; }
         .admin-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;
         }
         .btn-logout { border-radius: 50px; padding: 8px 20px; font-weight: 600; }
+        
+        /* Ajuste para Dark Mode no Card */
+        [data-colorscheme="dark"] .admin-card { background: #1e1e1e; color: #fff; }
     </style>
 </head>
 <body class="admin-page">
@@ -133,7 +140,7 @@
 
     <script>
         function abrirModalPadrao() {
-            $('#modalNovoPadrao').css('display', 'flex');
+            $('#modalNovoPadrao').css('display', 'flex').hide().fadeIn();
         }
 
         async function salvarNovoPadrao() {
@@ -141,6 +148,7 @@
             const file = $('#filePadrao')[0].files[0];
 
             if (!nome || !file) return alert("Preencha todos os campos.");
+            if (file.type !== "image/png") return alert("Por favor, selecione apenas ficheiros PNG.");
 
             $('#btnSalvarPadrao').prop('disabled', true).text('A carregar...');
 
@@ -149,7 +157,6 @@
                 const fileName = `padrao_${Date.now()}.${fileExt}`;
                 const filePath = `catalogo/${fileName}`;
 
-                // Upload para Storage
                 const { error: uploadError } = await _supabase.storage
                     .from('unhas-personalizadas')
                     .upload(filePath, file);
@@ -158,7 +165,6 @@
 
                 const { data: urlData } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(filePath);
                 
-                // Salvar na Tabela
                 const { error: dbError } = await _supabase.from('catalogo_padroes').insert([
                     { nome: nome, imagem_url: urlData.publicUrl, disponivel: true }
                 ]);
