@@ -34,18 +34,34 @@
             </div>
             <h3>Bem-vinda de volta</h3>
             <div class="auth-form">
-                <div class="auth-group">
-                    <label>E-mail</label>
-                    <input type="email" id="email" placeholder=>
-                </div>
-                <div class="auth-group">
-                    <label>Palavra-passe</label>
-                    <input type="password" id="password" >
-                </div>
-                <button id="btnLogin" class="btn-auth-submit" onclick="handleLogin()">Entrar</button>
                 
-                <p class="auth-switch">Esqueceu-se da senha? <a href="javascript:void(0)" onclick="abrirModalRecuperar()">Recuperar</a></p>
-                <p class="auth-switch">Não tem conta? <a href="registo.html">Registar</a></p>
+                <div id="step-1-login">
+                    <div class="auth-group">
+                        <label>E-mail</label>
+                        <input type="email" id="email" placeholder="">
+                    </div>
+                    <div class="auth-group">
+                        <label>Palavra-passe</label>
+                        <input type="password" id="password" >
+                    </div>
+                    <button id="btnLogin" class="btn-auth-submit" onclick="handleLogin()">Entrar</button>
+                    
+                    <p class="auth-switch">Esqueceu-se da senha? <a href="javascript:void(0)" onclick="abrirModalRecuperar()">Recuperar</a></p>
+                    <p class="auth-switch">Não tem conta? <a href="registo.html">Registar</a></p>
+                </div>
+
+                <div id="step-2-mfa" style="display: none;">
+                    <p style="text-align: center; margin-bottom: 20px; font-size: 0.9em; color: #666;">
+                        A sua conta está protegida. Insira o código de 6 dígitos gerado pela sua aplicação de autenticação.
+                    </p>
+                    <div class="auth-group">
+                        <label>Código MFA</label>
+                        <input type="text" id="mfa-code" placeholder="Ex: 123456" maxlength="6" style="text-align: center; letter-spacing: 5px; font-size: 1.2rem;">
+                    </div>
+                    <button id="btnMfa" class="btn-auth-submit" onclick="verificarMFA()">Verificar Código</button>
+                    <p class="auth-switch mt-3"><a href="javascript:void(0)" onclick="cancelarLogin()" style="color: #999;">Cancelar e voltar</a></p>
+                </div>
+
             </div>
         </div>
     </div>
@@ -68,6 +84,8 @@
         const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let factorIdAtual = null; // Variável para guardar o ID do MFA
 
         // --- FUNÇÕES DE CONTROLO DO MODAL ---
         function abrirModalRecuperar() {
@@ -111,6 +129,7 @@
 
             $('#btnLogin').prop('disabled', true).text('A entrar...');
 
+            // 1. Tentar Login
             const { data, error } = await _supabase.auth.signInWithPassword({
                 email: email,
                 password: password,
@@ -119,11 +138,85 @@
             if (error) {
                 alert("Erro: " + error.message);
                 $('#btnLogin').prop('disabled', false).text('Entrar');
+                return;
+            }
+
+            // 2. Verificar se precisa de MFA
+            const { data: aalData, error: aalError } = await _supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            
+            if (aalError) {
+                console.error("Erro AAL:", aalError);
+                $('#btnLogin').prop('disabled', false).text('Entrar');
+                return;
+            }
+
+            // Se o nextLevel for aal2, o utilizador ativou o MFA no registo
+            if (aalData.nextLevel === 'aal2' && aalData.nextLevel !== aalData.currentLevel) {
+                const factorsData = await _supabase.auth.mfa.listFactors();
+                if (factorsData.data && factorsData.data.totp.length > 0) {
+                    factorIdAtual = factorsData.data.totp[0].id; 
+                    
+                    // Mostrar painel do código MFA
+                    $('#step-1-login').hide();
+                    $('#step-2-mfa').show();
+                    $('#mfa-code').focus();
+                } else {
+                    alert("Erro ao carregar configurações de segurança.");
+                    $('#btnLogin').prop('disabled', false).text('Entrar');
+                }
             } else {
+                // Login concluído (Conta sem MFA)
                 verificarTipoUtilizador(data.user.id);
             }
         }
 
+        // --- VALIDAÇÃO DO CÓDIGO MFA ---
+        async function verificarMFA() {
+            const code = $('#mfa-code').val().trim();
+
+            if (code.length !== 6) return alert("O código deve ter 6 dígitos.");
+
+            $('#btnMfa').prop('disabled', true).text('A verificar...');
+
+            try {
+                // Gerar Desafio
+                const challenge = await _supabase.auth.mfa.challenge({ factorId: factorIdAtual });
+                if (challenge.error) throw challenge.error;
+
+                // Verificar Código
+                const verify = await _supabase.auth.mfa.verify({
+                    factorId: factorIdAtual,
+                    challengeId: challenge.data.id,
+                    code: code
+                });
+
+                if (verify.error) {
+                    $('#btnMfa').prop('disabled', false).text('Verificar Código');
+                    return alert("Código incorreto. Tente novamente.");
+                }
+
+                // MFA Sucesso! Vai buscar o user ID e redireciona
+                const { data: userData } = await _supabase.auth.getUser();
+                verificarTipoUtilizador(userData.user.id);
+
+            } catch (err) {
+                console.error(err);
+                alert("Ocorreu um erro na verificação do código.");
+                $('#btnMfa').prop('disabled', false).text('Verificar Código');
+            }
+        }
+
+        // Permite voltar atrás caso o utilizador não tenha o código à mão
+        async function cancelarLogin() {
+            await _supabase.auth.signOut();
+            $('#step-2-mfa').hide();
+            $('#step-1-login').show();
+            $('#btnLogin').prop('disabled', false).text('Entrar');
+            $('#password').val('');
+            $('#mfa-code').val('');
+        }
+
+        // --- VERIFICAÇÃO DE ROLE ---
         async function verificarTipoUtilizador(userId) {
             const { data, error } = await _supabase
                 .from('perfis')
