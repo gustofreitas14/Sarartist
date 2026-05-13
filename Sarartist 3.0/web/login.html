@@ -149,28 +149,29 @@
             }
         }
 
-        async function verificarTipoUtilizador(userId) {
-            // Pequeno delay para garantir que a sessão foi escrita no storage
-            setTimeout(async () => {
-                const { data, error } = await _supabase
-                    .from('perfis')
-                    .select('tipo_utilizador')
-                    .eq('id', userId)
-                    .single();
+async function verificarTipoUtilizador(userId) {
+    // O Supabase às vezes demora milissegundos a propagar a sessão
+    // por isso usamos este pequeno delay
+    setTimeout(async () => {
+        const { data, error } = await _supabase
+            .from('perfis')
+            .select('tipo_utilizador') // Garante que pedimos apenas esta coluna
+            .eq('id', userId)
+            .single();
 
-                if (error) {
-                    console.error("Erro ao verificar perfil:", error.message);
-                    window.location.href = 'index.html'; // Fallback
-                    return;
-                }
-
-                if (data && data.tipo_utilizador === 'admin') {
-                    window.location.href = 'admin-dashboard.html';
-                } else {
-                    window.location.href = 'index.html';
-                }
-            }, 500);
+        if (error) {
+            console.error("Erro RLS:", error.message);
+            // Se der erro aqui, o problema é que o RLS ainda não permite a leitura
+            return;
         }
+
+        if (data && data.tipo_utilizador === 'admin') {
+            window.location.href = 'admin-dashboard.html';
+        } else {
+            window.location.href = 'index.html';
+        }
+    }, 500); 
+}
 
         async function cancelarLogin() {
             await _supabase.auth.signOut();
