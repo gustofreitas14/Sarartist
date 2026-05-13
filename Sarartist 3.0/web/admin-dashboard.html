@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
     <script>
-        // Aplicar dark mode antes de qualquer render para evitar flash
+        // 1. Aplicar dark mode imediato
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
                 document.documentElement.style.backgroundColor = '#121212';
@@ -17,10 +17,14 @@
     <link href="css/font-awesome.css" rel="stylesheet">
     <script src="js/jquery-2.2.3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
+        /* Esconde a página por defeito para segurança */
+        body { display: none; }
+        .admin-page-active { display: block !important; }
+
         .admin-card { transition: all 0.3s ease; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 15px; }
         .admin-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-        /* Estilos para o Modal de Upload */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;
@@ -109,6 +113,33 @@
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // --- TRANCA DE SEGURANÇA ADMIN ---
+        async function protegerPagina() {
+            const { data: { user } } = await _supabase.auth.getUser();
+
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const { data, error } = await _supabase
+                .from('perfis')
+                .select('tipo_utilizador')
+                .eq('id', user.id)
+                .single();
+
+            if (error || !data || data.tipo_utilizador !== 'admin') {
+                alert("Acesso Negado: Esta área é reservada para a Sara.");
+                window.location.href = 'index.html';
+            } else {
+                // Se for admin, mostra a página
+                document.body.classList.add('admin-page-active');
+            }
+        }
+
+        // Executar proteção imediatamente
+        protegerPagina();
+
         function abrirModalPadrao() {
             $('#modalNovoPadrao').css('display', 'flex');
         }
@@ -122,7 +153,6 @@
             $('#btnSalvarPadrao').prop('disabled', true).text('A carregar...');
 
             try {
-                // 1. Upload para o bucket 'unhas-personalizadas'
                 const fileExt = file.name.split('.').pop();
                 const fileName = `padrao_${Date.now()}.${fileExt}`;
                 const filePath = `catalogo/${fileName}`;
@@ -133,10 +163,8 @@
 
                 if (uploadError) throw uploadError;
 
-                // 2. Obter URL
                 const { data: urlData } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(filePath);
                 
-                // 3. Inserir na tabela 'catalogo_padroes'
                 const { error: dbError } = await _supabase.from('catalogo_padroes').insert([
                     { nome: nome, imagem_url: urlData.publicUrl, disponivel: true }
                 ]);
