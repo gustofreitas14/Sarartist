@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
     <script>
-        // Aplicar dark mode antes de qualquer render para evitar flash
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
                 document.documentElement.style.backgroundColor = '#121212';
@@ -17,6 +16,20 @@
     <link href="css/font-awesome.css" rel="stylesheet">
     <script src="js/jquery-2.2.3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .patterns-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .pattern-item { 
+            border: 2px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer; 
+            text-align: center; flex: 1; min-width: 80px; transition: 0.3s;
+        }
+        .pattern-item.active { border-color: #f1703a; background: #fff5f0; color: #f1703a; }
+        .upload-box { 
+            border: 2px dashed #f1703a; padding: 20px; border-radius: 8px; 
+            margin-top: 15px; text-align: center; background: #fafafa;
+        }
+        .hidden-input { display: none; }
+        .preview-upload { max-width: 100px; margin-top: 10px; border-radius: 5px; display: none; }
+    </style>
 </head>
 <body class="pg-personalizar">
     <div id="header-placeholder"></div>
@@ -53,13 +66,32 @@
 
                 <div class="col-md-6">
                     <div class="booking-card-white">
-                        <h4 class="mb-4">Escolha a sua Cor</h4>
-                        <div id="colorGrid">
-                            <div class="text-center p-3">
-                                <i class="fa fa-spinner fa-spin"></i> A carregar catálogo...
-                            </div>
+                        <h4 class="mb-3"><i class="fa fa-paint-brush"></i> Escolha a sua Cor</h4>
+                        <div id="colorGrid"></div>
+
+                        <hr>
+
+                        <h4 class="mb-3"><i class="fa fa-star"></i> Escolha um Padrão</h4>
+                        <div class="patterns-grid">
+                            <div class="pattern-item active" onclick="selecionarPadrao(this, 'Simples')">Simples</div>
+                            <div class="pattern-item" onclick="selecionarPadrao(this, 'Flores')">Flores</div>
+                            <div class="pattern-item" onclick="selecionarPadrao(this, 'Riscas')">Riscas</div>
+                            <div class="pattern-item" onclick="selecionarPadrao(this, 'Personalizado')">Personalizado</div>
                         </div>
-                        <button class="btn-confirmar ready w-100 mt-4" onclick="window.location.href='confirmacao.html'">Continuar</button>
+
+                        <div id="areaUpload" class="upload-box" style="display:none;">
+                            <p>Envie-nos a sua imagem de inspiração:</p>
+                            <label class="btn-confirmar" style="background:#333; cursor:pointer;">
+                                <i class="fa fa-upload"></i> Selecionar Foto
+                                <input type="file" id="inputFoto" class="hidden-input" accept="image/*" onchange="previewImagem(this)">
+                            </label>
+                            <img id="imgPreview" class="preview-upload">
+                            <p id="uploadStatus" style="font-size:12px; margin-top:5px;"></p>
+                        </div>
+
+                        <button id="btnAvancar" class="btn-confirmar ready w-100 mt-4" onclick="validarEContinuar()">
+                            Continuar para Confirmação
+                        </button>
                     </div>
                 </div>
             </div>
@@ -69,59 +101,27 @@
     <div id="footer-placeholder"></div>
 
     <script>
-        // Configurações do Supabase
         const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         $(function () {
-            // CARREGAMENTO DO HEADER COM CORREÇÃO DO MENU
-            $("#header-placeholder").load("header.html", function() {
-                // Eventos do Menu Hamburger para garantir funcionalidade
-                $(document).on('click', '#openMenu', function() {
-                    $('#sideDrawer').addClass('open');
-                    $('#drawerOverlay').addClass('active');
-                });
-
-                $(document).on('click', '#closeMenu, #drawerOverlay', function() {
-                    $('#sideDrawer').removeClass('open');
-                    $('#drawerOverlay').removeClass('active');
-                });
-            });
-
+            $("#header-placeholder").load("header.html");
             $("#footer-placeholder").load("footer.html");
-
-            // Carregar cores da base de dados
             carregarCoresBD();
-
-            $(window).scroll(function () {
-                if ($(this).scrollTop() > 50) { $('.w3header').addClass('scrolled'); } 
-                else { $('.w3header').removeClass('scrolled'); }
-            });
+            
+            // Reset de segurança
+            localStorage.setItem('escolha_padrao', 'Simples');
+            localStorage.removeItem('escolha_imagem_url');
         });
 
         async function carregarCoresBD() {
-            const { data: cores, error } = await _supabase
-                .from('catalogo_unhas')
-                .select('*')
-                .eq('disponivel', true);
-
-            if (error) {
-                console.error("Erro ao carregar cores:", error);
-                $('#colorGrid').html('<p>Erro ao carregar cores.</p>');
-                return;
-            }
+            const { data: cores, error } = await _supabase.from('catalogo_unhas').select('*').eq('disponivel', true);
+            if (error) return $('#colorGrid').html('<p>Erro ao carregar cores.</p>');
 
             const grid = $('#colorGrid').empty();
-            
             cores.forEach(c => {
-                grid.append(`
-                    <div class="color-dot" 
-                         style="background: ${c.hex_code};" 
-                         title="${c.nome_cor}"
-                         onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')">
-                    </div>
-                `);
+                grid.append(`<div class="color-dot" style="background: ${c.hex_code};" onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')"></div>`);
             });
         }
 
@@ -129,9 +129,71 @@
             $('#nailColor').css('background-color', hex);
             $('.color-dot').removeClass('active');
             $(elemento).addClass('active');
-            
             localStorage.setItem('escolha_cor_hex', hex);
             localStorage.setItem('escolha_cor_nome', nome);
+        }
+
+        function selecionarPadrao(elemento, padrao) {
+            $('.pattern-item').removeClass('active');
+            $(elemento).addClass('active');
+            localStorage.setItem('escolha_padrao', padrao);
+
+            if (padrao === 'Personalizado') $('#areaUpload').fadeIn();
+            else $('#areaUpload').fadeOut();
+        }
+
+        function previewImagem(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => $('#imgPreview').attr('src', e.target.result).show();
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function validarEContinuar() {
+            const padrao = localStorage.getItem('escolha_padrao');
+            const file = $('#inputFoto')[0].files[0];
+
+            if (!localStorage.getItem('escolha_cor_hex')) {
+                return alert("Por favor, selecione uma cor primeiro.");
+            }
+
+            if (padrao === 'Personalizado') {
+                if (!file) return alert("Por favor, envie uma imagem para o seu padrão personalizado.");
+                
+                $('#btnAvancar').prop('disabled', true).text('A carregar imagem...');
+                
+                const uploadURL = await subirParaStorage(file);
+                if (uploadURL) {
+                    localStorage.setItem('escolha_imagem_url', uploadURL);
+                    window.location.href = 'confirmacao.html';
+                } else {
+                    $('#btnAvancar').prop('disabled', false).text('Continuar');
+                }
+            } else {
+                window.location.href = 'confirmacao.html';
+            }
+        }
+
+        async function subirParaStorage(file) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_inspiração.${fileExt}`;
+            const filePath = `clientes/${fileName}`;
+
+            const { data, error } = await _supabase.storage
+                .from('unhas-personalizadas')
+                .upload(filePath, file);
+
+            if (error) {
+                alert("Erro no upload: " + error.message);
+                return null;
+            }
+
+            const { data: urlData } = _supabase.storage
+                .from('unhas-personalizadas')
+                .getPublicUrl(filePath);
+
+            return urlData.publicUrl;
         }
     </script>
 </body>
