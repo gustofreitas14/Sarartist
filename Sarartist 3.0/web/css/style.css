@@ -3764,14 +3764,9 @@ input[type=number] {
     box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3); 
 }
 
-/* Dark mode aplicado ao html (via classList antes do render) */
+/* Dark mode no html — apenas color-scheme, sem background para não tapar o vídeo */
 html.dark-mode {
-    background-color: #121212;
     color-scheme: dark;
-}
-html.dark-mode body {
-    background-color: #121212 !important;
-    color: #e0e0e0 !important;
 }
 
 /* ============================================================
@@ -3782,7 +3777,7 @@ html.dark-mode body {
 
 /* --- Transição suave em todos os elementos --- */
 body.dark-mode,
-body.dark-mode *:not(img):not(.fa):not(i) {
+body.dark-mode *:not(img):not(.fa):not(i):not(.video):not(.jarallax):not(.vide-wrapper):not([style*="background"]) {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -4087,4 +4082,21 @@ body.dark-mode {
 body.dark-mode.pg-booking,
 body.dark-mode.pg-personalizar {
     background: #121212 !important;
+}
+
+/* --- Proteger vídeo e parallax do dark mode --- */
+body.dark-mode .video,
+body.dark-mode .jarallax,
+body.dark-mode .reservation-info,
+body.dark-mode .about-w3banner {
+    background-color: transparent !important;
+    filter: none !important;
+}
+body.dark-mode .video *,
+body.dark-mode .jarallax * {
+    background-color: transparent !important;
+}
+body.dark-mode .banner-w3ltext,
+body.dark-mode .bnrw3-agiletext {
+    color: #fff !important;
 }
