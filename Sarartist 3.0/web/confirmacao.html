@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
     <script>
         // Aplicar dark mode antes de qualquer render para evitar flash
@@ -15,8 +15,11 @@
     <link href="css/bootstrap.css" type="text/css" rel="stylesheet" media="all">
     <link href="css/style.css" type="text/css" rel="stylesheet" media="all">
     <link href="css/font-awesome.css" rel="stylesheet">
+    
     <script src="js/jquery-2.2.3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="pg-booking">
     <div id="header-placeholder"></div>
@@ -59,30 +62,30 @@
                             <label>Telemóvel</label>
                             <input type="tel" id="telCliente" class="form-control" placeholder="912 345 678">
                         </div>
-                        <button id="btnFinalizar" class="btn-confirmar ready w-100 mt-4" onclick="finalizarReserva()">Finalizar Marcação</button>
+                        <button id="btnFinalizar" class="btn-confirmar ready w-100 mt-4" onclick="finalizarReserva()">Confirmar e Gerar Talão</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <div id="footer-placeholder"></div>
+
     <script>
-        // Configurações do Supabase (Substitui pelos teus dados do Settings > API)
         const SUPABASE_URL = 'https://vonvfugrkkvkqcekcwdo.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         $(function () {
             $("#header-placeholder").load("header.html");
+            $("#footer-placeholder").load("footer.html");
 
-            // 1. Recuperar dados do LocalStorage
             const servico = localStorage.getItem('servico_nome');
             const data = localStorage.getItem('reserva_data');
             const hora = localStorage.getItem('reserva_hora');
             const preco = localStorage.getItem('servico_preco');
             const cor = localStorage.getItem('escolha_cor_nome');
 
-            // 2. Preencher o resumo
             $('#resumoServico').text(servico || "-");
             $('#resumoData').text(data || "-");
             $('#resumoHora').text(hora || "-");
@@ -93,7 +96,6 @@
                 $('#resumoCor').text(cor);
             }
 
-            // 3. Ajustar link da personalização
             if(servico !== 'Manicure') {
                 $('#step3_link').attr('onclick', 'alert("Este serviço não requer personalização.")');
             } else {
@@ -105,15 +107,10 @@
             const nome = $('#nomeCliente').val();
             const tel = $('#telCliente').val();
 
-            if(!nome || !tel) {
-                alert("Por favor, preencha o seu nome e telemóvel.");
-                return;
-            }
+            if(!nome || !tel) return alert("Por favor, preencha o seu nome e telemóvel.");
 
-            // Desativar botão para evitar cliques duplos
             $('#btnFinalizar').prop('disabled', true).text('A processar...');
 
-            // Preparar dados para o Supabase
             const dadosAgendamento = {
                 cliente_nome: nome,
                 cliente_tel: tel,
@@ -124,19 +121,75 @@
                 preco_total: parseFloat(localStorage.getItem('servico_preco'))
             };
 
-            // Enviar para a tabela 'agendamentos'
-            const { data, error } = await _supabase
-                .from('agendamentos')
-                .insert([dadosAgendamento]);
+            const { data, error } = await _supabase.from('agendamentos').insert([dadosAgendamento]);
 
             if (error) {
                 alert("Erro ao gravar marcação: " + error.message);
-                $('#btnFinalizar').prop('disabled', false).text('Finalizar Marcação');
+                $('#btnFinalizar').prop('disabled', false).text('Confirmar e Gerar Talão');
             } else {
-                alert("Sucesso! A sua marcação foi enviada.");
+                gerarPDFMarcacao(dadosAgendamento);
+                alert("Marcação confirmada com sucesso!");
                 localStorage.clear();
                 window.location.href = 'index.html';
             }
+        }
+
+        function gerarPDFMarcacao(dados) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const brandColor = [241, 112, 58]; // #f1703a
+
+            // Estética do Documento
+            doc.setFillColor(brandColor[0], brandColor[1], brandColor[2]);
+            doc.rect(0, 0, 210, 40, 'F');
+            
+            doc.setFontSize(24);
+            doc.setTextColor(255, 255, 255);
+            doc.text("SARARTIST", 105, 25, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.text("COMPROVATIVO DE MARCAÇÃO", 105, 33, { align: 'center' });
+
+            // Detalhes do Cliente
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            doc.text("INFORMAÇÕES DO CLIENTE", 20, 55);
+            doc.line(20, 57, 80, 57);
+            
+            doc.setFontSize(11);
+            doc.text(`Nome: ${dados.cliente_nome}`, 20, 65);
+            doc.text(`Telemóvel: ${dados.cliente_tel}`, 20, 72);
+
+            // Detalhes da Reserva
+            doc.setFontSize(12);
+            doc.text("DETALHES DO SERVIÇO", 20, 90);
+            doc.line(20, 92, 80, 92);
+
+            doc.setFontSize(11);
+            doc.text(`Serviço: ${dados.servico_nome}`, 20, 100);
+            doc.text(`Data: ${dados.data_reserva}`, 20, 107);
+            doc.text(`Hora: ${dados.hora_reserva}`, 20, 114);
+            
+            if(dados.cor_escolhida) {
+                doc.text(`Cor Selecionada: ${dados.cor_escolhida}`, 20, 121);
+            }
+
+            // Total
+            doc.setFontSize(16);
+            doc.setTextColor(brandColor[0], brandColor[1], brandColor[2]);
+            doc.text(`VALOR TOTAL: ${dados.preco_total.toFixed(2)}€`, 20, 140);
+
+            // Informações Adicionais
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(9);
+            doc.text("Nota: Por favor, chegue 5 minutos antes da hora marcada.", 20, 160);
+            doc.text("Localização: Rua do Girassol nº174, Nine, V.N.Famalicão", 20, 165);
+
+            // Rodapé
+            doc.setFontSize(8);
+            doc.text("Este documento serve como comprovativo de reserva online.", 105, 285, { align: 'center' });
+
+            doc.save(`Marcacao_Sarartist_${dados.data_reserva}.pdf`);
         }
     </script>
 </body>
