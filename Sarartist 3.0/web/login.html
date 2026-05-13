@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
     <script>
-        // Aplicar dark mode antes de qualquer render para evitar flash
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
                 document.documentElement.style.backgroundColor = '#121212';
@@ -19,7 +18,6 @@
     <script src="js/jquery-2.2.3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Dark mode: aplicar antes do render para evitar flash branco
         if (localStorage.getItem('sarartist_darkmode') === 'true') {
             document.documentElement.classList.add('dark-mode');
             document.body && document.body.classList.add('dark-mode');
@@ -70,11 +68,9 @@
         <div class="central-modal">
             <h4>Recuperar Senha</h4>
             <p>Introduza o seu e-mail para receber um código de 6 dígitos.</p>
-            
             <div class="auth-group text-left" style="margin-top: 15px;">
                 <input type="email" id="email-recuperar" class="form-control" style="padding: 10px; border: 1px solid #ddd;">
             </div>
-
             <button id="btnEnviarCodigo" class="btn-auth-submit-modal mt-3" onclick="enviarCodigoRecuperacao()">Enviar Código</button>
             <button class="btn-cancelar" onclick="fecharModalRecuperar()">Cancelar</button>
         </div>
@@ -85,39 +81,11 @@
         const SUPABASE_KEY = 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let factorIdAtual = null; // Variável para guardar o ID do MFA
+        let factorIdAtual = null;
 
-        // --- FUNÇÕES DE CONTROLO DO MODAL ---
-        function abrirModalRecuperar() {
-            $('#modalRecuperar').addClass('active');
-        }
+        function abrirModalRecuperar() { $('#modalRecuperar').addClass('active'); }
+        function fecharModalRecuperar() { $('#modalRecuperar').removeClass('active'); }
 
-        function fecharModalRecuperar() {
-            $('#modalRecuperar').removeClass('active');
-        }
-
-        async function enviarCodigoRecuperacao() {
-            const email = $('#email-recuperar').val();
-            if(!email) {
-                alert("Por favor, introduza o seu e-mail.");
-                return;
-            }
-
-            $('#btnEnviarCodigo').prop('disabled', true).text('A enviar...');
-
-            const { error } = await _supabase.auth.resetPasswordForEmail(email);
-
-            if (error) {
-                alert("Erro: " + error.message);
-                $('#btnEnviarCodigo').prop('disabled', false).text('Enviar Código');
-            } else {
-                alert("Sucesso! Código enviado para o seu e-mail.");
-                localStorage.setItem('email_recuperacao', email);
-                window.location.href = 'redefinir-senha.html';
-            }
-        }
-
-        // --- LÓGICA DE LOGIN ---
         async function handleLogin() {
             const email = $('#email').val();
             const password = $('#password').val();
@@ -129,11 +97,7 @@
 
             $('#btnLogin').prop('disabled', true).text('A entrar...');
 
-            // 1. Tentar Login
-            const { data, error } = await _supabase.auth.signInWithPassword({
-                email: email,
-                password: password,
-            });
+            const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
 
             if (error) {
                 alert("Erro: " + error.message);
@@ -141,94 +105,76 @@
                 return;
             }
 
-            // 2. Verificar se precisa de MFA
             const { data: aalData, error: aalError } = await _supabase.auth.mfa.getAuthenticatorAssuranceLevel();
             
-            if (aalError) {
-                console.error("Erro AAL:", aalError);
-                $('#btnLogin').prop('disabled', false).text('Entrar');
-                return;
-            }
-
-            // Se o nextLevel for aal2, o utilizador ativou o MFA no registo
-            if (aalData.nextLevel === 'aal2' && aalData.nextLevel !== aalData.currentLevel) {
+            if (aalData?.nextLevel === 'aal2' && aalData?.nextLevel !== aalData?.currentLevel) {
                 const factorsData = await _supabase.auth.mfa.listFactors();
-                if (factorsData.data && factorsData.data.totp.length > 0) {
+                if (factorsData.data?.totp?.length > 0) {
                     factorIdAtual = factorsData.data.totp[0].id; 
-                    
-                    // Mostrar painel do código MFA
                     $('#step-1-login').hide();
                     $('#step-2-mfa').show();
                     $('#mfa-code').focus();
                 } else {
-                    alert("Erro ao carregar configurações de segurança.");
-                    $('#btnLogin').prop('disabled', false).text('Entrar');
+                    verificarTipoUtilizador(data.user.id);
                 }
             } else {
-                // Login concluído (Conta sem MFA)
                 verificarTipoUtilizador(data.user.id);
             }
         }
 
-        // --- VALIDAÇÃO DO CÓDIGO MFA ---
         async function verificarMFA() {
             const code = $('#mfa-code').val().trim();
-
             if (code.length !== 6) return alert("O código deve ter 6 dígitos.");
 
             $('#btnMfa').prop('disabled', true).text('A verificar...');
 
             try {
-                // Gerar Desafio
                 const challenge = await _supabase.auth.mfa.challenge({ factorId: factorIdAtual });
                 if (challenge.error) throw challenge.error;
 
-                // Verificar Código
                 const verify = await _supabase.auth.mfa.verify({
                     factorId: factorIdAtual,
                     challengeId: challenge.data.id,
                     code: code
                 });
 
-                if (verify.error) {
-                    $('#btnMfa').prop('disabled', false).text('Verificar Código');
-                    return alert("Código incorreto. Tente novamente.");
-                }
+                if (verify.error) throw verify.error;
 
-                // MFA Sucesso! Vai buscar o user ID e redireciona
                 const { data: userData } = await _supabase.auth.getUser();
                 verificarTipoUtilizador(userData.user.id);
 
             } catch (err) {
-                console.error(err);
-                alert("Ocorreu um erro na verificação do código.");
+                alert("Erro: " + err.message);
                 $('#btnMfa').prop('disabled', false).text('Verificar Código');
             }
         }
 
-        // Permite voltar atrás caso o utilizador não tenha o código à mão
-        async function cancelarLogin() {
-            await _supabase.auth.signOut();
-            $('#step-2-mfa').hide();
-            $('#step-1-login').show();
-            $('#btnLogin').prop('disabled', false).text('Entrar');
-            $('#password').val('');
-            $('#mfa-code').val('');
+        async function verificarTipoUtilizador(userId) {
+            // Pequeno delay para garantir que a sessão foi escrita no storage
+            setTimeout(async () => {
+                const { data, error } = await _supabase
+                    .from('perfis')
+                    .select('tipo_utilizador')
+                    .eq('id', userId)
+                    .single();
+
+                if (error) {
+                    console.error("Erro ao verificar perfil:", error.message);
+                    window.location.href = 'index.html'; // Fallback
+                    return;
+                }
+
+                if (data && data.tipo_utilizador === 'admin') {
+                    window.location.href = 'admin-dashboard.html';
+                } else {
+                    window.location.href = 'index.html';
+                }
+            }, 500);
         }
 
-        // --- VERIFICAÇÃO DE ROLE ---
-        async function verificarTipoUtilizador(userId) {
-            const { data, error } = await _supabase
-                .from('perfis')
-                .select('tipo_utilizador')
-                .eq('id', userId)
-                .single();
-
-            if (data && data.tipo_utilizador === 'admin') {
-                window.location.href = 'admin-dashboard.html';
-            } else {
-                window.location.href = 'index.html';
-            }
+        async function cancelarLogin() {
+            await _supabase.auth.signOut();
+            location.reload();
         }
     </script>
 </body>
