@@ -20,9 +20,24 @@
         .patterns-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
         .pattern-item { 
             border: 2px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer; 
-            text-align: center; flex: 1; min-width: 80px; transition: 0.3s;
+            text-align: center; flex: 1; min-width: 100px; transition: 0.3s;
+            background: #fff; color: #333;
         }
+        .pattern-item img { width: 100%; height: 60px; object-fit: contain; margin-bottom: 5px; border-radius: 4px; }
         .pattern-item.active { border-color: #f1703a; background: #fff5f0; color: #f1703a; }
+        
+        /* Estilo para as camadas da mão */
+        .hand-wrapper { position: relative; width: 100%; }
+        .hand-image { position: relative; z-index: 3; width: 100%; display: block; }
+        .nail-color-layer { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 1; transition: background 0.3s; 
+        }
+        #nailPatternLayer { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 2; pointer-events: none; object-fit: contain;
+        }
+
         .upload-box { 
             border: 2px dashed #f1703a; padding: 20px; border-radius: 8px; 
             margin-top: 15px; text-align: center; background: #fafafa;
@@ -59,6 +74,7 @@
                     <div class="nail-preview-container">
                         <div class="hand-wrapper">
                             <img src="images/hand-mask.png" class="hand-image">
+                            <img id="nailPatternLayer" src="">
                             <div id="nailColor" class="nail-color-layer"></div>
                         </div>
                     </div>
@@ -66,17 +82,14 @@
 
                 <div class="col-md-6">
                     <div class="booking-card-white">
-                        <h4 class="mb-3"><i class="fa fa-paint-brush"></i> Escolha a sua Cor</h4>
+                        <h4 class="mb-3"><i class="fa fa-paint-brush"></i> 1. Escolha a Cor</h4>
                         <div id="colorGrid"></div>
 
                         <hr>
 
-                        <h4 class="mb-3"><i class="fa fa-star"></i> Escolha um Padrão</h4>
-                        <div class="patterns-grid">
-                            <div class="pattern-item active" onclick="selecionarPadrao(this, 'Simples')">Simples</div>
-                            <div class="pattern-item" onclick="selecionarPadrao(this, 'Flores')">Flores</div>
-                            <div class="pattern-item" onclick="selecionarPadrao(this, 'Riscas')">Riscas</div>
-                            <div class="pattern-item" onclick="selecionarPadrao(this, 'Personalizado')">Personalizado</div>
+                        <h4 class="mb-3"><i class="fa fa-star"></i> 2. Escolha o Desenho</h4>
+                        <div id="patternsGrid" class="patterns-grid">
+                            <div class="text-center w-100 p-3"><i class="fa fa-spinner fa-spin"></i> A carregar desenhos...</div>
                         </div>
 
                         <div id="areaUpload" class="upload-box" style="display:none;">
@@ -86,7 +99,6 @@
                                 <input type="file" id="inputFoto" class="hidden-input" accept="image/*" onchange="previewImagem(this)">
                             </label>
                             <img id="imgPreview" class="preview-upload">
-                            <p id="uploadStatus" style="font-size:12px; margin-top:5px;"></p>
                         </div>
 
                         <button id="btnAvancar" class="btn-confirmar ready w-100 mt-4" onclick="validarEContinuar()">
@@ -108,9 +120,10 @@
         $(function () {
             $("#header-placeholder").load("header.html");
             $("#footer-placeholder").load("footer.html");
-            carregarCoresBD();
             
-            // Reset de segurança
+            carregarCoresBD();
+            carregarPadroesBD();
+            
             localStorage.setItem('escolha_padrao', 'Simples');
             localStorage.removeItem('escolha_imagem_url');
         });
@@ -118,11 +131,43 @@
         async function carregarCoresBD() {
             const { data: cores, error } = await _supabase.from('catalogo_unhas').select('*').eq('disponivel', true);
             if (error) return $('#colorGrid').html('<p>Erro ao carregar cores.</p>');
-
             const grid = $('#colorGrid').empty();
             cores.forEach(c => {
-                grid.append(`<div class="color-dot" style="background: ${c.hex_code};" onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')"></div>`);
+                grid.append(`<div class="color-dot" style="background: ${c.hex_code};" title="${c.nome_cor}" onclick="aplicarCor(this, '${c.hex_code}', '${c.nome_cor}')"></div>`);
             });
+        }
+
+        async function carregarPadroesBD() {
+            const { data: padroes, error } = await _supabase.from('catalogo_padroes').select('*').eq('disponivel', true);
+            if (error) return $('#patternsGrid').html('<p>Erro ao carregar desenhos.</p>');
+
+            const grid = $('#patternsGrid').empty();
+            
+            // Opção Padrão: Simples
+            grid.append(`
+                <div class="pattern-item active" onclick="selecionarPadrao(this, 'Simples', '')">
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-ban fa-2x"></i></div>
+                    <div>Simples</div>
+                </div>
+            `);
+
+            // Padrões da Base de Dados
+            padroes.forEach(p => {
+                grid.append(`
+                    <div class="pattern-item" onclick="selecionarPadrao(this, '${p.nome}', '${p.imagem_url}')">
+                        <img src="${p.imagem_url}">
+                        <div>${p.nome}</div>
+                    </div>
+                `);
+            });
+
+            // Opção Padrão: Personalizado
+            grid.append(`
+                <div class="pattern-item" onclick="selecionarPadrao(this, 'Personalizado', '')">
+                    <div style="height:60px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-camera fa-2x"></i></div>
+                    <div>O meu desenho</div>
+                </div>
+            `);
         }
 
         function aplicarCor(elemento, hex, nome) {
@@ -133,13 +178,24 @@
             localStorage.setItem('escolha_cor_nome', nome);
         }
 
-        function selecionarPadrao(elemento, padrao) {
+        function selecionarPadrao(elemento, padrao, imgUrl) {
             $('.pattern-item').removeClass('active');
             $(elemento).addClass('active');
             localStorage.setItem('escolha_padrao', padrao);
 
-            if (padrao === 'Personalizado') $('#areaUpload').fadeIn();
-            else $('#areaUpload').fadeOut();
+            const patternLayer = $('#nailPatternLayer');
+
+            if (padrao === 'Personalizado') {
+                $('#areaUpload').fadeIn();
+                patternLayer.hide().attr('src', '');
+            } else {
+                $('#areaUpload').fadeOut();
+                if (imgUrl && padrao !== 'Simples') {
+                    patternLayer.attr('src', imgUrl).show();
+                } else {
+                    patternLayer.hide().attr('src', '');
+                }
+            }
         }
 
         function previewImagem(input) {
@@ -159,10 +215,8 @@
             }
 
             if (padrao === 'Personalizado') {
-                if (!file) return alert("Por favor, envie uma imagem para o seu padrão personalizado.");
-                
+                if (!file) return alert("Por favor, envie uma imagem para o seu desenho personalizado.");
                 $('#btnAvancar').prop('disabled', true).text('A carregar imagem...');
-                
                 const uploadURL = await subirParaStorage(file);
                 if (uploadURL) {
                     localStorage.setItem('escolha_imagem_url', uploadURL);
@@ -179,20 +233,9 @@
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_inspiração.${fileExt}`;
             const filePath = `clientes/${fileName}`;
-
-            const { data, error } = await _supabase.storage
-                .from('unhas-personalizadas')
-                .upload(filePath, file);
-
-            if (error) {
-                alert("Erro no upload: " + error.message);
-                return null;
-            }
-
-            const { data: urlData } = _supabase.storage
-                .from('unhas-personalizadas')
-                .getPublicUrl(filePath);
-
+            const { data, error } = await _supabase.storage.from('unhas-personalizadas').upload(filePath, file);
+            if (error) { alert("Erro no upload: " + error.message); return null; }
+            const { data: urlData } = _supabase.storage.from('unhas-personalizadas').getPublicUrl(filePath);
             return urlData.publicUrl;
         }
     </script>
