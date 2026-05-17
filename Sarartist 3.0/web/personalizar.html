@@ -3,10 +3,9 @@
 
 <head>
     <script>
-        (function () {
+        (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
-                document.documentElement.style.backgroundColor = '#121212';
-                document.documentElement.style.colorScheme = 'dark';
+                document.documentElement.classList.add('dark-mode');
             }
         })();
     </script>
@@ -358,23 +357,45 @@
             if (!msg) return;
 
             $('#chat-messages').append(`<div class="msg msg-user">${msg}</div>`);
+            $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
             input.val('');
 
             try {
                 console.log("A enviar para a Sara...");
 
-                const { data, error } = await _supabase.functions.invoke('sarartist-ai', {
-                    body: { prompt: msg }
+                // Construir prompt com contexto do catálogo
+                const coresDisponiveis = listaCores.map(c => c.nome_cor).join(', ');
+                const padroesDisponiveis = ['Simples', ...listaPadroes.map(p => p.nome), 'Personalizado'].join(', ');
+
+                const promptCompleto = `És a Sara AI, estilista da Sarartist, um salão de beleza português.
+Catálogo de cores disponíveis: ${coresDisponiveis}
+Desenhos disponíveis: ${padroesDisponiveis}
+A cliente diz: "${msg}"
+Responde em português de Portugal, de forma simpática e breve (máximo 3 frases).
+Sugere EXATAMENTE 1 cor e 1 desenho do catálogo acima.
+No final inclui OBRIGATORIAMENTE esta linha: [APLICAR: NomeDaCor | NomeDoDesenho]`;
+
+                const { data, error } = await _supabase.functions.invoke('Sara-IA', {
+                    body: { prompt: promptCompleto }
                 });
 
                 if (error) throw error;
 
                 console.log("Resposta recebida:", data);
 
-                // Garantimos que lemos a propriedade correta
-                const respostaFinal = data.resposta || "A Sara está tímida hoje...";
+                const respostaCompleta = data.resposta || "A Sara está tímida hoje...";
 
-                $('#chat-messages').append(`<div class="msg msg-ai">${respostaFinal}</div>`);
+                // Detetar sugestão [APLICAR: Cor | Desenho]
+                const match = respostaCompleta.match(/\[APLICAR:\s*(.+?)\s*\|\s*(.+?)\]/i);
+                let textoLimpo = respostaCompleta.replace(/\[APLICAR:.*?\]/i, '').trim();
+
+                if (match) {
+                    const corSug = match[1].trim();
+                    const padSug = match[2].trim();
+                    $('#chat-messages').append(`<div class="msg msg-ai">${textoLimpo}<br><br><button class="ai-action-btn" onclick="aplicarSugestaoIA('${corSug}', '${padSug}')">✨ Aplicar: ${corSug} + ${padSug}</button></div>`);
+                } else {
+                    $('#chat-messages').append(`<div class="msg msg-ai">${textoLimpo}</div>`);
+                }
 
             } catch (err) {
                 console.error("Erro detalhado:", err);
