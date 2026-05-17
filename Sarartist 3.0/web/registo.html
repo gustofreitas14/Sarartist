@@ -4,8 +4,7 @@
     <script>
         (function() {
             if (localStorage.getItem('sarartist_darkmode') === 'true') {
-                document.documentElement.style.backgroundColor = '#121212';
-                document.documentElement.style.colorScheme = 'dark';
+                document.documentElement.classList.add('dark-mode');
             }
         })();
     </script>
@@ -13,6 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="css/bootstrap.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
     <script src="js/jquery-2.2.3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
@@ -45,8 +45,28 @@
                 <div class="auth-group"><label>Nome Completo</label><input type="text" id="reg-nome"></div>
                 <div class="auth-group"><label>Telemóvel</label><input type="tel" id="reg-tel"></div>
                 <div class="auth-group"><label>E-mail</label><input type="email" id="reg-email"></div>
-                <div class="auth-group"><label>Palavra-passe</label><input type="password" id="reg-password"></div>
+                <div class="auth-group">
+                    <label>Palavra-passe</label>
+                    <div style="position: relative;">
+                        <input type="password" id="reg-password" style="padding-right: 45px;">
+                        <button type="button" onclick="togglePassword('reg-password', 'iconRegPass')"
+                            style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#999; padding:0;">
+                            <i class="fa fa-eye" id="iconRegPass"></i>
+                        </button>
+                    </div>
+                </div>
                 <button id="btnRegistar" class="btn-auth-submit" onclick="handleSignUp()">Registar</button>
+
+                <div style="display:flex; align-items:center; margin: 20px 0; gap: 10px;">
+                    <hr style="flex:1; margin:0; border-color:#eee;">
+                    <span style="color:#aaa; font-size:13px;">ou</span>
+                    <hr style="flex:1; margin:0; border-color:#eee;">
+                </div>
+
+                <button onclick="loginComGoogle()" style="width:100%; padding:12px; border:1.5px solid #ddd; border-radius:30px; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; font-size:15px; color:#333; transition:0.3s;" onmouseover="this.style.borderColor='#e91e63'" onmouseout="this.style.borderColor='#ddd'">
+                    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    Registar com Google
+                </button>
                 <p class="auth-switch">Já tem conta? <a href="login.html">Fazer Login</a></p>
             </div>
         </div>
@@ -74,6 +94,30 @@
     <script>
         const _supabase = supabase.createClient('https://vonvfugrkkvkqcekcwdo.supabase.co', 'sb_publishable_4wzbT3JAJIPkPJZgoB1ipw_RdvBaFxc');
         let currentFactorId = null;
+
+        function togglePassword(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        async function loginComGoogle() {
+            const { error } = await _supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + '/index.html'
+                }
+            });
+            if (error) alert("Erro ao ligar com Google: " + error.message);
+        }
 
         async function handleSignUp() {
             const email = $('#reg-email').val();
